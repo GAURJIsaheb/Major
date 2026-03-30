@@ -1,0 +1,43 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "cross-env SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node --watch src/index.js",
+    "start": "cross-env NODE_ENV=production SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node src/index.js",
+    "seed": "cross-env SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node src/seed.js",
+    "dev:analytics-worker": "cross-env SERVICE_NAME=analytics-worker DOTENV_CONFIG_PATH=./env/nexushr-analytics-worker.env node ../workers/analytics/src/analytics-worker.js",
+    "dev:image-worker": "cross-env SERVICE_NAME=image-worker DOTENV_CONFIG_PATH=./env/nexushr-image-worker.env node ../workers/image-worker/src/image-worker.js",
+    "dev:mails-worker": "cross-env SERVICE_NAME=mails-worker DOTENV_CONFIG_PATH=./env/nexushr-mails-worker.env node ../workers/mails/src/index.js",
+    "dev:payroll-batch": "cross-env SERVICE_NAME=payroll-batch DOTENV_CONFIG_PATH=./env/nexushr-payroll-batch.env node ../workers/payroll-batch/src/payroll.batch.js",
+    "dev:payroll-generator": "cross-env SERVICE_NAME=payroll-generator DOTENV_CONFIG_PATH=./env/nexushr-payroll-generator.env node ../workers/payroll-generator/src/payroll.generator.js"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.998.0",
+    "@aws-sdk/client-sqs": "^3.999.0",
+    "@aws-sdk/s3-request-presigner": "^3.998.0",
+    "axios": "^1.13.6",
+    "bcrypt": "^6.0.0",
+    "bullmq": "^5.70.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dns": "^0.2.2",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "ioredis": "5.9.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.1.6",
+    "redis": "^5.10.0",
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6"
+  }
+  ,
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

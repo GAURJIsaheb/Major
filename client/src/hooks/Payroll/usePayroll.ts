@@ -1,0 +1,303 @@
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import { toast } from 'sonner';
+import ApiCaller from '@/utils/ApiCaller';
+import type { RootState } from '@/store';
+
+interface User {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role?: string;
+    profilePhoto?: string;
+}
+
+interface Salary {
+    _id: string;
+    userId: User | string;
+    base: number;
+    hra: number;
+    lta: number;
+}
+
+export interface PayrollItem {
+    _id: string;
+    user: any;
+    salary: any;
+    bonus: { reason: string; amount: number }[];
+    deduction: { reason: string; amount: number }[];
+    month: number;
+    year: number;
+    createdAt: string;
+    syncState?: "unsynced" | "synced";
+}
+
+export function usePayroll() {
+    const { userDetails } = useSelector((state: RootState) => state.userState);
+    const isHR = userDetails?.role === 'HR';
+
+    const [users, setUsers] = useState<User[]>([]);
+    const [salaries, setSalaries] = useState<Salary[]>([]);
+    const [payrolls, setPayrolls] = useState<PayrollItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [userSearchTerm, setUserSearchTerm] = useState('');
+    const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
+    const [userSearching, setUserSearching] = useState(false);
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [filterYear, setFilterYear] = useState<string>('');
+    const [filterMonth, setFilterMonth] = useState<string>('');
+
+    const [usersPage, setUsersPage] = useState(1);
+    const [usersTotal, setUsersTotal] = useState(0);
+    const [payrollPage, setPayrollPage] = useState(1);
+    const [payrollTotal, setPayrollTotal] = useState(0);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+    const [page, setPage] = useState(1);
+    const [total] = useState(0);
+    const limit = 10;
+    const usersLimit = 10;
+    const payrollLimit = 10;
+
+    const searchUsers = useCallback(async (query: string) => {
+        if (!query.trim() || query.trim().length < 2) {
+            setSearchedUsers([]);
+            setUserSearching(false);
+            return;
+        }
+        setUserSearching(true);
+        try {
+            const result = await ApiCaller<null, User[]>({
+                requestType: 'GET',
+                paths: ['api', 'v1', 'search', 'users'],
+                queryParams: { query: query.trim() },
+            });
+            if (result.ok && Array.isArray(result.response.data)) {
+                setSearchedUsers(result.response.data);
+            } else {
+                setSearchedUsers([]);
+            }
+        } catch {
+            setSearchedUsers([]);
+        } finally {
+            setUserSearching(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        if (!userSearchTerm.trim() || userSearchTerm.trim().length < 2) {
+            setSearchedUsers([]);
+            return;
+        }
+        searchDebounceRef.current = setTimeout(() => searchUsers(userSearchTerm), 400);
+        return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+    }, [userSearchTerm, searchUsers]);
+
+    const fetchUsers = async (currentPage = 1) => {
+        if (!isHR) return;
+        try {
+            const { response } = await ApiCaller<any, User[]>({
+                requestType: 'GET',
+                paths: ['api', 'v1', 'user', 'get-users'],
+                queryParams: { limit: usersLimit.toString(), page: currentPage.toString() }
+            });
+            if (response?.data) {
+                if (Array.isArray(response.data)) {
+                    setUsers(response.data);
+                } else if ((response.data as any).data && Array.isArray((response.data as any).data)) {
+                    setUsers((response.data as any).data);
+                    setUsersTotal((response.data as any).total || 0);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    };
+
+    const fetchSalaries = async () => {
+        if (!isHR) return;
+        try {
+            const { response } = await ApiCaller<any, any>({
+                requestType: 'GET',
+                paths: ['api', 'v1', 'salaries'],
+                queryParams: { limit: 'all' }
+            });
+            if (response?.data) {
+                if (Array.isArray(response.data)) {
+                    setSalaries(response.data);
+                } else if (response.data.data && Array.isArray(response.data.data)) {
+                    setSalaries(response.data.data);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching salaries:', error);
+        }
+    };
+
+    const fetchPayrolls = async (currentPage = 1, year?: string, month?: string) => {
+        try {
+            let apiPayrolls: PayrollItem[] = [];
+            let apiTotal = 0;
+
+            if (navigator.onLine) {
+                const queryParams: Record<string, string> = { page: currentPage.toString(), limit: payrollLimit.toString() };
+                if (year) queryParams.year = year;
+                if (year && month) queryParams.month = month;
+                const { response } = await ApiCaller<any, any>({
+                    requestType: 'GET',
+                    paths: ['api', 'v1', 'payroll'],
+                    queryParams
+                });
+                if (response?.data) {
+                    if (Array.isArray(response.data)) {
+                        apiPayrolls = response.data;
+                    } else if (response.data.data) {
+                        apiPayrolls = response.data.data;
+                        apiTotal = response.data.total || 0;
+                    } else {
+                        apiPayrolls = [response.data];
+                        apiTotal = 1;
+                    }
+                }
+            }
+
+            setPayrolls(apiPayrolls);
+            setPayrollTotal(apiTotal);
+        } catch (error) {
+            console.error('Error fetching payrolls:', error);
+        }
+    };
+
+    const initData = async () => {
+        setLoading(true);
+        try {
+            await Promise.all([
+                fetchUsers(),
+                fetchSalaries(),
+                fetchPayrolls(page)
+            ]);
+        } catch (error) {
+            console.error('Initial data fetch error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        initData();
+    }, [userDetails]);
+
+    useEffect(() => {
+        fetchPayrolls(payrollPage, filterYear, filterMonth);
+    }, [payrollPage, filterYear, filterMonth]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setPayrollPage(1);
+    }, [filterYear, filterMonth]);
+
+    useEffect(() => {
+        fetchUsers(usersPage);
+    }, [usersPage]);
+
+    const handleOpenModal = (user: User) => {
+        setSelectedUser(user);
+        setIsModalOpen(true);
+    };
+
+    const handleModalSuccess = () => {
+        setIsModalOpen(false);
+        // Reset to page 1 so the new payroll appears at the top
+        if (payrollPage !== 1) {
+            setPayrollPage(1); // useEffect will trigger fetch for page 1
+        } else {
+            fetchPayrolls(1, filterYear, filterMonth);
+        }
+    };
+
+    const filteredUsers = userSearchTerm.trim().length >= 2 ? searchedUsers : users;
+
+    const filteredPayrolls = payrolls;
+
+    const getUserName = (userId: any) => {
+        if (!userId) return 'Unknown User';
+        if (typeof userId === 'object' && userId.firstName) {
+            return `${userId.firstName} ${userId.lastName}`;
+        }
+        const u = users.find(x => x._id === userId);
+        return u ? `${u.firstName} ${u.lastName}` : 'Unknown User';
+    };
+
+    const calculateTotals = (payroll: PayrollItem) => {
+        const totalBonus = (payroll.bonus || []).reduce((acc, curr) => acc + Math.abs(Number(curr.amount) || 0), 0);
+        const totalDeduction = (payroll.deduction || []).reduce((acc, curr) => acc + Math.abs(Number(curr.amount) || 0), 0);
+        let baseSalary = 0;
+        if (payroll.salary && typeof payroll.salary === 'object') {
+            baseSalary = Number(payroll.salary.base || 0) + Number(payroll.salary.hra || 0) + Number(payroll.salary.lta || 0);
+        }
+        const netSalary = baseSalary + totalBonus - totalDeduction;
+        return { totalBonus, totalDeduction, baseSalary, netSalary };
+    };
+
+    const handleAnalytics = async (year: number, month: number) => {
+        try {
+            setLoading(true);
+            const { ok, response } = await ApiCaller<any, any>({
+                requestType: 'GET',
+                paths: ['api', 'v1', 'payroll', 'analytics'],
+                queryParams: { year: year.toString(), month: month.toString() },
+            });
+            if (ok) {
+                toast.success('Analytics information will be sent to your email');
+            } else {
+                toast.error(response?.message || 'Failed to generate analytics');
+            }
+        } catch (error) {
+            console.error('Error fetching analytics:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return {
+        isHR,
+        users,
+        salaries,
+        payrolls,
+        loading,
+        userSearchTerm,
+        setUserSearchTerm,
+        userSearching,
+        filterYear,
+        setFilterYear,
+        filterMonth,
+        setFilterMonth,
+        isModalOpen,
+        setIsModalOpen,
+        selectedUser,
+        page,
+        setPage,
+        total,
+        limit,
+        usersPage,
+        setUsersPage,
+        usersTotal,
+        usersLimit,
+        handleOpenModal,
+        handleModalSuccess,
+        filteredUsers,
+        filteredPayrolls,
+        getUserName,
+        payrollPage,
+        setPayrollPage,
+        payrollTotal,
+        payrollLimit,
+        calculateTotals,
+        handleAnalytics
+    };
+}

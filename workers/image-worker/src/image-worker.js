@@ -1,0 +1,117 @@
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({
+  path: path.resolve(__dirname, "../../../backend/env/nexushr-image-worker.env"),
+});
+import {
+  SQSClient,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+} from "@aws-sdk/client-sqs";
+import { createClient } from "redis";
+import ImageProcessor from "./utils/processor/Image/Image.js";
+import SysConf from "./conf/config.js";
+import DB from "./utils/Db.js";
+const Config = new SysConf().MustLoad();
+
+function getPublicS3Url(bucket, region, key) {
+  if (!bucket || !region || !key) {
+    return null;
+  }
+  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+}
+
+// SQS fix
+const SQS_CLIENT = new SQSClient({
+  region: Config.SQS_REGION,
+  endpoint: Config.SQS_ENDPOINT || undefined,
+});
+
+// Queue fix
+const command = new ReceiveMessageCommand({
+  QueueUrl: Config.SQS_URL,
+  MaxNumberOfMessages: 1,
+  VisibilityTimeout: 10,
+  WaitTimeSeconds: 20,
+});
+
+const dbInstance = new DB(Config.MONGO_DB_URL, Config.DB_NAME);
+await dbInstance.Connect();
+
+// Connect to Redis
+const redisClient = createClient({ url: Config.REDIS_URL });
+redisClient.on("error", (err) => console.error("Redis error:", err));
+await redisClient.connect();
+console.log("Redis connected in worker");
+
+async function ProcessMessages() {
+  while (true) {
+    const { Messages } = await SQS_CLIENT.send(command);
+    if (!Messages) {
+      console.log("No message is recieved");
+      continue;
+    }
+
+    try {
+      for (const message of Messages) {
+        const { Body, ReceiptHandle } = message;
+        if (!Body) continue;
+
+        const event = JSON.parse(Body);
+        if ("Service" in event && "Event" in event) {
+          if (event.Service === "s3:TestEvent") continue;
+        }
+
+        if (!event.Records || !Array.isArray(event.Records)) {
+          continue;
+        }
+
+        for (const record of event.Records) {
+          const bucketName = record.s3.bucket.name;
+          const objectKey = decodeURIComponent(
+            record.s3.object.key.replace(/\+/g, " "),
+          );
+
+          console.log("File uploaded:", objectKey);
+          console.log("Bucket:", bucketName);
+
+          
+          const UserId = objectKey.split("/")[1];
+          const response = await ImageProcessor(UserId,bucketName,objectKey,dbInstance);
+
+          console.log("Processing result:", response);
+
+
+          const photoUrl = getPublicS3Url(bucketName, Config.S3_REGION, objectKey);
+          
+          const redisValue = JSON.stringify({
+            match: response?.matchResult?.match ?? false,
+            similarity: response?.matchResult?.similarity ?? null,
+            processedAt: new Date().toISOString(),
+          });
+
+          // Store with 5 minute TTL so keys auto-expire
+          await redisClient.set(photoUrl, redisValue, { EX: 300 });
+          console.log(`Stored verification result in Redis: ${photoUrl} => ${redisValue}`);
+          
+        }
+
+        await SQS_CLIENT.send(
+          new DeleteMessageCommand({
+            QueueUrl: Config.SQS_URL,
+            ReceiptHandle: ReceiptHandle,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Error in processing message", error);
+    }
+  }
+}
+
+ProcessMessages();

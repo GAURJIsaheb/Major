@@ -1,0 +1,1200 @@
+# NexusHR
+
+> A full-stack Human Resource Management System (HRMS) built for Restroworks, featuring role-based access control, offline-first attendance, payroll processing, leave management, and real-time sync.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [HR Portal Exclusive Features](#hr-portal-exclusive-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Environment Variables](#environment-variables)
+  - [Running the Backend](#running-the-backend)
+  - [Running the Client](#running-the-client)
+  - [Seeding the Database](#seeding-the-database)
+- [Process Management (PM2)](#process-management-pm2)
+- [Workers](#workers)
+  - [Payroll Generator](#payroll-generator)
+  - [Payroll Batch](#payroll-batch)
+  - [Image Worker](#image-worker)
+  - [Analytics Worker](#analytics-worker)
+- [Bulk Payroll Processing](#bulk-payroll-processing)
+- [Backend](#backend)
+  - [Entry Point & Clustering](#entry-point--clustering)
+  - [Server Setup](#server-setup)
+  - [Configuration & Env Validation](#configuration--env-validation)
+  - [Database](#database)
+  - [Middlewares](#middlewares)
+  - [Utilities](#utilities)
+  - [API Modules](#api-modules)
+    - [Auth](#auth-apiv1auth)
+    - [Users](#users-apiv1user)
+    - [Skills](#skills-apiv1skills)
+    - [Departments](#departments-apiv1departments)
+    - [Leaves](#leaves-apiv1leaves)
+    - [Salaries](#salaries-apiv1salaries)
+    - [Payroll](#payroll-apiv1payroll)
+    - [Attendance](#attendance-apiv1attendance)
+    - [Sync](#sync-apiv1sync)
+    - [Hiring](#hiring-apiv1hiring)
+- [Applicant Tracking System (ATS)](#applicant-tracking-system-ats)
+- [Client](#client)
+  - [Routing & Role-Based Access](#routing--role-based-access)
+  - [Pages](#pages)
+  - [Components](#components)
+  - [Hooks](#hooks)
+  - [State Management (Redux)](#state-management-redux)
+  - [Utilities](#utilities-1)
+    - [ApiCaller](#apicaller)
+    - [DbManger (IndexedDB)](#dbmanger-indexeddb)
+    - [OnlineStateChecker](#onlinestatechecker)
+    - [PdfGenerator](#pdfgenerator)
+  - [Web Workers](#web-workers)
+- [Offline-First Architecture](#offline-first-architecture)
+- [Data Flow Diagram](#data-flow-diagram)
+- [API Response Format](#api-response-format)
+
+---
+
+## Overview
+
+NexusHR is a monorepo HRMS application with a **Node.js/Express** backend and a **React/TypeScript** SPA frontend. It supports two user roles:
+
+| Role | Default Landing Page | Access |
+|------|---------------------|--------|
+| **HR** | `/employee` | Full management: employees, departments, skills, salaries, payroll, leaves, attendance analytics |
+| **Employee** | `/attendance` | Self-service: attendance punch-in/out, own leave requests, own payroll/salary view |
+
+Key highlights:
+- **JWT authentication** with automatic access-token refresh via HTTP-only cookies (using a dedicated session collection)
+- **Offline-first attendance**: punches are stored in IndexedDB when offline and synced via a Web Worker when connectivity is restored
+- **Secure Face Verification**: photo verification required during punch-out workflows
+- **Clustered backend**: Node.js cluster module forks multiple worker processes for horizontal scaling
+- **BullMQ + Redis / SQS** queue for processing offline batch jobs and analytics generation
+- **Zod validation** on all backend endpoints for runtime type safety
+
+---
+
+## HR Portal Exclusive Features
+
+The NexusHR platform empowers Human Resource administrators with a specialized suite of tools and dashboards tailored for organizational management:
+
+- **Advanced Analytics & Worker Queues**: Trigger background analytics generation for selected months and years via a dedicated Docker LocalStack queue and view the results in comprehensive dashboards.
+- **Enhanced Payroll PDF Reports**: Export detailed payslips featuring visual range charts for bonus/deduction distributions and department-wise statistics.
+- **Domain-Specific Aesthetic Dashboards**: Curated, responsive dashboards with domain-specific color schemes for managing Skills, Departments, and Salaries.
+- **Refined Leave & Attendance Insights**: Visually enhanced leave dashboards featuring segmented bar charts (by leave types) and aesthetic pie charts for quick status assessments.
+- **Events Management**: An interactive organization-wide Events Calendar that HR can manage, seeding and displaying events with detailed dialogs.
+- **Bulk Payroll Processing**: Process payroll for entire departments or the full organization concurrently using distributed background workers (generator and batch writers).
+- **Applicant Tracking System (ATS)**: AI-powered resume screening with TF-IDF + semantic embeddings for intelligent skill matching. Automatically rank candidates based on resume-to-opening fit with configurable thresholds for bulk rejection/filtering.
+
+---
+
+## Tech Stack
+
+### Backend
+| Technology | Purpose |
+|-----------|---------|
+| **Node.js** (ESM) | Runtime |
+| **Express 5** | HTTP framework |
+| **Mongoose 9** | MongoDB ODM |
+| **bcrypt** | Password hashing |
+| **jsonwebtoken** | JWT access & refresh tokens |
+| **cookie-parser** | HTTP-only cookie handling |
+| **zod** | Schema validation |
+| **uuid** | Unique ID generation |
+| **dotenv** | Environment variables |
+
+### Client
+| Technology | Purpose |
+|-----------|---------|
+| **React 19** | UI framework |
+| **TypeScript** | Static typing |
+| **Vite 7** | Build tool & dev server |
+| **TailwindCSS 4** | Utility-first styling |
+| **shadcn/ui + Radix UI** | Accessible component primitives |
+| **React Router DOM 7** | Client-side routing |
+| **Redux Toolkit** | Global state (user session) |
+| **Axios** | HTTP client |
+| **idb** | IndexedDB wrapper (offline queue) |
+| **Recharts** | Analytics charts |
+| **@react-pdf/renderer** | PDF payslip generation |
+| **date-fns** | Date utilities |
+| **lucide-react** | Icon library |
+
+---
+
+## Project Structure
+
+```
+NexusHR/
+├── backend/
+│   ├── src/
+│   │   ├── index.js           # Entry point — cluster setup
+│   │   ├── server.js          # App class — Express setup
+│   │   ├── routes.js          # Root router mounting all modules
+│   │   ├── seed.js            # Database seeder (50+ docs per model)
+│   │   ├── config/
+│   │   │   ├── Config.js      # Zod env schema validator
+│   │   │   ├── Db.js          # Mongoose connection class
+│   │   │   └── env.js         # Singleton config export (Cfg)
+│   │   ├── middlewares/
+│   │   │   ├── verify.middleware.js   # JWT verification
+│   │   │   └── error.middleware.js    # Global error handler
+│   │   ├── utils/
+│   │   │   ├── AsyncHandler.js   # Wraps async route handlers
+│   │   │   ├── Error.js          # ApiError class
+│   │   │   ├── Response.js       # ApiResponse class
+│   │   │   └── index.js          # Re-exports utils
+│   │   ├── queue/
+│   │   │   └── payroll.queue.js  # SQS client — sends bulk payroll messages
+│   │   ├── types/                # Shared Zod schemas / type definitions
+│   │   └── modules/
+│   │       ├── Users/            # Authentication + employee management
+│   │       ├── Skills/           # Skill CRUD
+│   │       ├── Departments/      # Department CRUD
+│   │       ├── Leaves/           # Leave types, balances, requests
+│   │       ├── Salaries/         # Salary structures
+│   │       ├── Payroll/          # Payroll generation & retrieval
+│   │       ├── Attendance/       # Punch-in/out records
+│   │       ├── Hiring/           # Job openings, applicants, ATS scoring, interview rounds
+│   │       └── Sync/             # Offline batch sync endpoint
+│   └── package.json
+├── workers/
+│   ├── payroll-generator/        # Reads SQS, aggregates employee data, publishes batches
+│   │   └── src/
+│   │       ├── payroll.generator.js
+│   │       ├── conf/config.js
+│   │       └── utils/
+│   │           ├── Db.js
+│   │           └── Employees.js  # MongoDB aggregation pipeline
+│   ├── payroll-batch/            # Consumes batches and bulk-writes payroll records
+│   │   └── src/
+│   │       ├── payroll.batch.js
+│   │       ├── conf/Config.js
+│   │       └── utils/Db.js
+│   ├── image-worker/             # Image processing worker
+│   │   └── src/
+│   │       └── image-worker.js
+│   ├── resume-processor/          # ATS engine — resume parsing, tokenization, TF-IDF scoring
+│   │   └── src/
+│   │       ├── resume-processor.js
+│   │       ├── conf/Config.js
+│   │       ├── engine/
+│   │       │   ├── index.js       # ATSEngine main orchestration
+│   │       │   ├── ParseResumes.js
+│   │       │   ├── Tokenizer.js
+│   │       │   ├── tf-calculator.js
+│   │       │   └── idf-calculator.js
+│   │       └── utils/
+│   │           ├── CosineSimilarity.js
+│   │           ├── Db.js
+│   │           ├── DownloadResume.js
+│   │           └── GenerateEmbeddings.js
+│   └── analytics/                 # Analytics aggregation worker
+├── ecosystem.config.js           # PM2 multi-app config
+└── client/
+    ├── src/
+    │   ├── main.tsx             # React entry point + Redux Provider
+    │   ├── App.tsx              # Router + ProtectedRoute + RoleBasedRedirect
+    │   ├── pages/
+    │   │   ├── Login.tsx
+    │   │   └── dashboard/
+    │   │       ├── Employee.tsx
+    │   │       ├── Departments.tsx
+    │   │       ├── Salaries.tsx
+    │   │       ├── Skills.tsx
+    │   │       ├── Payroll.tsx
+    │   │       ├── Attendance.tsx
+    │   │       └── Leaves.tsx
+    │   ├── components/          # Reusable UI components
+    │   ├── hooks/               # Feature-specific data hooks
+    │   ├── store/               # Redux store + userState slice
+    │   ├── utils/
+    │   │   ├── ApiCaller.ts     # Axios wrapper with token refresh
+    │   │   ├── DbManger.ts      # IndexedDB offline attendance queue
+    │   │   ├── OnlineStateChecker.ts
+    │   │   └── PdfGenerator.tsx
+    │   ├── workers/
+    │   │   ├── syncQueue.worker.ts   # Flushes IndexedDB → server
+    │   │   └── pdf.worker.tsx
+    │   └── types/               # TypeScript type definitions
+    └── package.json
+```
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        Client (Browser)                       │
+│                                                              │
+│  React SPA  ──── Redux (userState) ──── ProtectedRoutes     │
+│      │                                                       │
+│  ApiCaller (Axios)  ←──── Token Refresh on 401 ────────┐    │
+│      │                                                  │    │
+│  IndexedDB (idb)   ←── OfflineAttendanceQueue          │    │
+│  syncQueue.worker  ──── flush() on reconnect ──────────┘    │
+└──────────────────────────────────────────────────────────────┘
+               │ HTTP (REST)  / cookies
+┌──────────────────────────────────────────────────────────────┐
+│                   Backend (Node.js Cluster)                   │
+│                                                              │
+│  Primary Process  ──── forks N workers (½ CPU cores)        │
+│                                                              │
+│  Each Worker:                                                │
+│  Express 5 ──── /api/v1/* ──── VerifyMiddleware (JWT)       │
+│      │                                                       │
+│  Modules: Auth | Users | Skills | Departments | Leaves      │
+│           Salaries | Payroll | Attendance | Sync            │
+│      │                                                       │
+│  Mongoose ──── MongoDB        SQS Queue (payroll.queue.js)  │
+└──────────────────────────────────────────────────────────────┘
+               │                          │ SQS Messages
+┌──────────────────────────────────────────────────────────────┐
+│                     Workers (PM2 Managed)                     │
+│                                                              │
+│  payroll-generator (×1)                                      │
+│    └─ Polls SQS → aggregates employees → publishes batches  │
+│                                                              │
+│  payroll-batch (×3)                                          │
+│    └─ Polls SQS → bulk-writes payroll records to MongoDB    │
+│                                                              │
+│  image-worker (×1)                                           │
+│    └─ Image processing tasks                                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 20
+- MongoDB (local or Atlas)
+
+### Environment Variables
+
+Sample templates for the backend and PM2-managed workers live in the `env/` directory. Copy the matching file to the service root before running that process (or point your process manager at it):
+
+```bash
+cp env/nexushr-backend.env backend/.env
+cp env/nexushr-image-worker.env workers/image-worker/.env
+cp env/nexushr-payroll-generator.env workers/payroll-generator/.env
+cp env/nexushr-payroll-batch.env workers/payroll-batch/.env
+cp env/nexushr-mails-worker.env workers/mails/.env
+cp env/nexushr-analytics-worker.env workers/analytics/.env
+```
+
+Each template already contains placeholder values for the required Zod schema fields (SQS URLs, secrets, AWS settings, etc.). Replace the placeholders with your real credentials before starting the app.
+
+The React client still uses the single `client/.env` file:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+### External Infrastructure (Docker removed)
+
+The repo no longer bundles a local Docker stack. Instead, point every service to your hosted infrastructure using the placeholder values in `env/*.env`:
+
+- **MongoDB**: Atlas connection strings (e.g., `mongodb+srv://...`) are required for `MONGO_DB_URL`.  
+- **Redis**: Upstash or another managed Redis provider; paste the full `rediss://` URL and repeat the host/port/credentials from that provider.  
+- **AWS Services**: All SQS queues and the bucket used by the image worker expect real AWS URLs, regions, and credentials (`SQS_URL`, `SQS_ENDPOINT`, `AWS_REGION`, `SQS_ACCESS_KEY`, `SQS_SECRET_KEY`, `S3_ENDPOINT`, etc.).  
+- **Email**: Provide the SMTP/account credentials (`USER_EMAIL`, `USER_PASSWORD`) used by the mails worker and analytics worker.
+
+Update each `.env` file from the `env/` templates before launching the corresponding PM2 app. There is no LocalStack/Local Mongo/Local Redis anymore—this repo relies on the production-ready services you supply.
+
+### Running the Backend
+
+```bash
+cd backend
+npm install
+node src/index.js
+```
+
+### Running the Client
+
+```bash
+cd client
+npm install
+npm run dev        # Development server (Vite) on http://localhost:5173
+npm run build      # Production build
+npm run preview    # Preview production build
+```
+
+### Seeding the Database
+
+Populates all collections with 50+ realistic documents:
+
+```bash
+cd backend
+npm run seed
+```
+
+---
+
+## Process Management (PM2)
+
+Use the root PM2 ecosystem file to run all services together.
+
+### Prerequisites
+
+- PM2 installed globally (`npm i -g pm2`)
+- Dependencies installed in each app folder (`backend`, `workers`, `client`)
+
+### PM2 App Instances
+
+| Service | PM2 Name | Instances | Mode |
+|---------|----------|-----------|------|
+| Backend API | `nexushr-backend` | 1 | cluster |
+| Payroll Generator | `nexushr-payroll-worker` | 1 | cluster |
+| Payroll Batch Writer | `nexushr-payroll-batch` | 3 | cluster |
+| Image Worker | `nexushr-image-worker` | 1 | cluster |
+| Analytics Worker | `nexushr-analytics` | 1 | cluster |
+| Client Dev Server | `nexushr-client` | 1 | fork |
+
+The **payroll-batch** worker runs with 3 instances so multiple batches of employee payrolls can be written in parallel for faster processing.
+
+### Start all services
+
+```bash
+cd NexusHR
+pm2 start ecosystem.config.js
+```
+
+### Start PM2 on system reboot
+
+Run this once to register PM2 with system startup, then save the current process list:
+
+```bash
+pm2 startup
+# run the command PM2 prints (usually with sudo)
+pm2 save
+```
+
+After reboot, PM2 restores and starts the app list saved by `pm2 save`.
+
+### Useful PM2 commands
+
+```bash
+pm2 ls
+pm2 logs
+pm2 restart ecosystem.config.js
+pm2 stop ecosystem.config.js
+pm2 delete ecosystem.config.js
+```
+
+---
+
+## Workers
+
+Independent Node.js processes managed by PM2 that handle background tasks via SQS queues.
+
+### Payroll Generator
+
+**`workers/payroll-generator/src/payroll.generator.js`**
+
+Long-polls the **subscriber SQS queue** for bulk payroll messages from the backend. On receiving a message:
+
+1. Parses `{ departments, month, year, bulkBonus, bulkDeduction }` from the event
+2. Calls `GetEmployeeBatches()` — an **async generator** that runs a MongoDB aggregation pipeline on the `users` collection
+3. The pipeline joins salary, last payroll (including bonus), unpaid-leave deductions, and attendance data for each employee
+4. Yields employee batches of up to 1,000 documents
+5. Publishes each batch along with `month`, `year`, `bulkBonus`, and `bulkDeduction` to the **publisher SQS queue**
+6. Deletes the original message
+
+**Aggregation pipeline stages (Employees.js):**
+
+| Stage | Purpose |
+|-------|---------|
+| Match by department | Filter employees (skip if "All") |
+| Lookup last payroll | Get the most recent payroll (bonus carry-forward) |
+| Lookup salary | From last payroll's salary ref, or fall back to current salary |
+| Lookup unpaid leaves | ACCEPTED leave requests for the month where `leaveType.isPaid = false` |
+| Count present days | Distinct attendance days in the month |
+| Compute per-day salary | `base / totalDaysInMonth` |
+| Compute leave deductions | `quantity * perDaySalary` for each unpaid leave |
+| Final projection | Employee info, salary, last payroll bonus, leave deductions |
+
+### Payroll Batch
+
+**`workers/payroll-batch/src/payroll.batch.js`** — Runs **3 instances** via PM2.
+
+Long-polls the **publisher SQS queue** for employee batches. On receiving a batch:
+
+1. Parses `{ employees, month, year, bulkBonus, bulkDeduction }`
+2. Queries MongoDB to find employees who **already have a payroll** for this month/year — skips them
+3. For each remaining employee, builds a payroll document:
+   - **bonus** = bonus from last payroll + bulk bonus
+   - **deduction** = unpaid leave deductions + bulk deduction
+4. Executes a `bulkWrite` with `ordered: false` to insert all payroll records in one operation
+5. Deletes the SQS message
+
+### Image Worker
+
+**`workers/image-worker/src/image-worker.js`**
+
+Handles image processing tasks (resizing, optimization) via SQS.
+
+### Analytics Worker
+
+**`workers/analytics/...`**
+
+Handles processing of HR analytics data, triggered by a dedicated analytics queue via LocalStack. Evaluates metrics such as departmental bonuses, deductions, and monthly aggregations.
+
+### Resume Processor (ATS Engine)
+
+**`workers/resume-processor/src/resume-processor.js`**
+
+Long-polls the AWS SQS queue for ATS resume scoring events from the backend. On receiving an event with `{ openingId }`:
+
+1. **Download & Parse**: Downloads all applicant resumes (PDF/DOCX) for the opening
+2. **Tokenize**: Extracts tokens from resume text using natural language tokenization
+3. **Embed**: Generates semantic embeddings for all unique tokens and job-required skills using a pre-trained model
+4. **Calculate TF (Term Frequency)**: For each skill in the job opening, computes a TF score that blends:
+   - Semantic similarity (cosine distance between skill and resume tokens)
+   - Exact-match shortcut (if skill is literally found in resume, TF = 1.0)
+   - Frequency bonus (log-normalized count of matched tokens)
+   - Formula: `TF = min(1.0, maxSimilarity * 0.7 + frequencyBonus * 0.3)`
+5. **Calculate IDF (Inverse Document Frequency)**: Computes how rare/common each skill is across all applicants' resumes
+   - Formula: `IDF = log(1 + totalResumes / resumesContainingSkill)` (smoothed to avoid log(0))
+6. **Compute Scores**: For each applicant, calculates raw score as:
+   - `score = Σ(TF × IDF × skillWeight)` across all required skills
+   - Normalizes by total skill weights to produce a 0–1 score
+7. **Rank & Min-Max Normalize**: Sorts applicants by normalized score, then applies min-max normalization across the candidate pool to spread scores meaningfully
+8. **Persist**: Stores the `normalizedScore` and `rank` in the `applicants` collection for each applicant
+9. **Cache & Publish**: Publishes results to Redis with applicant count to ensure freshness on the frontend
+
+**Key algorithms:**
+- **TF Calculation** (`tf-calculator.js`): Tokenizes skill names using the same strategy as the tokenizer to avoid mismatches (e.g., `"Node.js"` → `["node"]`)
+- **IDF Calculation** (`idf-calculator.js`): Uses cosine similarity (with 0.55 threshold) to detect skill presence in resumes, accounting for synonyms and abbreviations
+- **Tokenizer** (`Tokenizer.js`): Splits on non-alphanumeric characters (preserves `+` and `#` for special skills like `C++`, `C#`), drops tokens < 3 chars, generates n-grams for multi-word matches
+- **Embeddings** (`GenerateEmbeddings.js`): Calls a transformer model (via API or local) to convert tokens and skill names into fixed-size vectors for semantic comparison
+
+---
+
+## Bulk Payroll Processing
+
+End-to-end flow for generating payroll across the organization:
+
+```
+HR clicks "Generate Bulk" in the UI
+       │
+       ▼
+BulkPayrollDialog: selects month, year, departments,
+                   optional bulk bonus & bulk deduction
+       │
+       ▼
+POST /api/v1/payroll/bulk
+  { month, year, department?, bulkBonus?, bulkDeduction? }
+       │
+       ▼
+PayrollController.GenerateBulkPayroll
+  → Validates with Zod (GenerateBulkPayrollValidationSchema)
+  → Sends SQS message via PayrollSendMessage()
+  → Returns 200 immediately (fire-and-forget)
+       │
+       ▼  SQS (subscriber queue)
+       │
+payroll-generator worker (×1)
+  → Polls SQS, receives { departments, month, year, bulkBonus, bulkDeduction }
+  → Runs aggregation pipeline on users collection
+  → Yields batches of up to 1,000 enriched employee documents
+  → Publishes each batch to SQS (publisher queue)
+       │
+       ▼  SQS (publisher queue)
+       │
+payroll-batch worker (×3 — competing consumers)
+  → Polls SQS, receives { employees, month, year, bulkBonus, bulkDeduction }
+  → Skips employees that already have payroll for this month/year
+  → For each employee:
+       bonus    = lastPayroll.bonus + bulkBonus
+       deduction = unpaidLeaveDeductions + bulkDeduction
+  → Executes bulkWrite (ordered: false) into payrolls collection
+       │
+       ▼
+Payroll records in MongoDB
+  → Visible in the Payroll page for HR and employees
+  → Downloadable as PDF payslips
+```
+
+### What goes into each payroll record
+
+| Field | Source |
+|-------|--------|
+| `user` | Employee ID |
+| `salary` | Salary ref from last payroll, or employee's current salary |
+| `bonus` | Bonus array carried from last payroll + bulk bonus from HR |
+| `deduction` | Unpaid leave deductions (auto-calculated) + bulk deduction from HR |
+| `month` | Selected month |
+| `year` | Selected year |
+
+### Deduction amounts (negative in DB)
+
+The payroll model's `pre("save")` hook ensures deduction amounts are stored as **negative values**. During bulk-write (raw MongoDB), the `payroll-batch` worker inserts deduction amounts as-is (positive), matching the same pipeline output as single payroll generation.
+
+---
+
+## Backend
+
+### Entry Point & Clustering
+
+**`src/index.js`**
+
+Uses Node.js built-in `cluster` module. The primary process computes the number of workers as `max(INSTANCES env var, half the machine's CPU cores)` and forks that many worker processes. Each worker runs its own Express HTTP server.
+
+```
+Primary ──── fork() × N ──── Worker 1 (Express, port 8000)
+                         ──── Worker 2 (Express, port 8000)
+                         ...
+```
+
+If a worker dies, the primary throws an error (fail-fast; can be changed to auto-restart by uncommenting `cluster.fork()` in the exit handler).
+
+---
+
+### Server Setup
+
+**`src/server.js`** — `App` class
+
+| Method | Description |
+|--------|-------------|
+| `#initializeSerivces()` | Connects to MongoDB via `DB` class |
+| `#initializeMiddlewares()` | CORS (localhost:5173), JSON, cookieParser, urlencoded |
+| `#initializeRoutes()` | Mounts `Routes` at `/api/v1` |
+| `#initializeErrorHandling()` | Registers the global `errorHandler` |
+| `Listen(PORT)` | Starts the HTTP server |
+
+---
+
+### Configuration & Env Validation
+
+**`src/config/Config.js`** — `Config` class
+
+Validates all required environment variables at startup using a **Zod schema**. If any variable is missing or has the wrong type, the process exits immediately with a descriptive error. This prevents silent misconfigurations.
+
+Required variables: `PORT`, `INSTANCES`, `ACCESS_TOKEN_SECRET`, `MONGO_DB_URL`, `DB_NAME`, `REFRESH_TOKEN`.
+
+**`src/config/env.js`** — exports the singleton `Cfg` object (parsed config).
+
+---
+
+### Database
+
+**`src/config/Db.js`**
+
+A simple `DB` class wrapping Mongoose's `connect()`. The connection URL and database name are passed from env config.
+
+---
+
+### Redis
+
+**`src/utils/redis.client.js`** — `RedisClient` (node:redis)
+
+A singleton wrapping the official `redis` Node.js client. Used for general caching or session purposes. Connects automatically on first `getInstance()` call.
+
+### Middlewares
+
+| File | Middleware | Description |
+|------|-----------|-------------|
+| `verify.middleware.js` | `VerifyMiddleware` | Reads JWT from `cookies.accessToken` or `Authorization` header. Verifies against `ACCESS_TOKEN_SECRET`. Adds decoded payload to `req.user`. Throws 401 on failure or expiry. |
+| `error.middleware.js` | `errorHandler` | Global error handler. Maps `ApiError` instances to structured JSON responses. Catches any unhandled thrown errors. |
+
+---
+
+### Utilities
+
+| File | Export | Description |
+|------|--------|-------------|
+| `AsyncHandler.js` | `AsyncHandler(fn)` | Wraps an async route handler in a try/catch, forwarding errors to `next()`. Eliminates boilerplate try/catch in controllers. |
+| `Error.js` | `ApiError` | Custom error class extending `Error`. Carries `statusCode`, `message`, and optional `errors` array. |
+| `Response.js` | `ApiResponse` | Standardized success response shape: `{ statusCode, message, data, success, errors }`. |
+
+---
+
+### API Modules
+
+All modules follow a consistent **Routes → Controller → Model** pattern. Each module directory contains:
+- `Routes/` — Express Router class defining endpoints
+- `Controllers/` — Business logic, calls models, sends `ApiResponse`
+- `Models/` (or `models/`) — Mongoose schema definitions
+
+---
+
+#### Auth (`/api/v1/auth`)
+
+> No auth required on these routes.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/login` | Accepts credentials, verifies password with bcrypt, issues JWT access token (cookie) + refresh token (cookie) |
+| `POST` | `/refresh-access-token` | Uses refresh token cookie to issue a new access token |
+| `POST` | `/logout` | Clears access and refresh token cookies |
+
+---
+
+#### Users (`/api/v1/user`)
+
+> All routes protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/create-employee` | Creates a new employee user (HR only) |
+| `PUT` | `/update-employee/:id` | Updates employee details |
+| `GET` | `/get-users` | Returns all users (paginated) |
+| `GET` | `/get-users/:id` | Returns a single user by ID |
+| `DELETE` | `/delete-employee/:id` | Soft or hard deletes an employee |
+
+The `Users` module also contains:
+- **`Encrypts.js`**: bcrypt helpers for hashing and comparing passwords
+
+---
+
+#### Skills (`/api/v1/skills`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a new skill |
+| `GET` | `/` | List all skills |
+| `PUT` | `/:id` | Update a skill |
+| `DELETE` | `/:id` | Delete a skill |
+
+---
+
+#### Departments (`/api/v1/departments`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a department |
+| `GET` | `/` | List all departments |
+| `PUT` | `/:id` | Update a department |
+| `DELETE` | `/:id` | Delete a department |
+
+---
+
+#### Leaves (`/api/v1/leaves`)
+
+The Leaves module is subdivided into three sub-routers:
+
+**Leave Types** (`/api/v1/leaves/types`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a leave type (e.g., Sick, Casual) |
+| `GET` | `/` | List all leave types |
+| `PUT` | `/:id` | Update a leave type |
+| `DELETE` | `/:id` | Delete a leave type |
+
+**Leave Balances** (`/api/v1/leaves/balances`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Assign leave balance to an employee |
+| `GET` | `/` | Get all leave balances (HR) or own balance (Employee) |
+| `PUT` | `/:id` | Update leave balance |
+| `DELETE` | `/:id` | Remove a leave balance |
+
+**Leave Requests** (`/api/v1/leaves/requests`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Submit a leave request (Employee) |
+| `GET` | `/` | List requests (HR sees all, Employee sees own) |
+| `PUT` | `/:id` | Approve / reject (HR) or update (Employee) |
+| `DELETE` | `/:id` | Cancel a request |
+
+Transactions (Mongoose sessions) are used in leave balance + request write operations to maintain **ACID guarantees** — a failed request won't silently deduct balance.
+
+---
+
+#### Salaries (`/api/v1/salaries`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a salary structure for an employee |
+| `GET` | `/` | List all salaries (paginated) |
+| `GET` | `/:id` | Get salary for a specific employee |
+| `PUT` | `/:id` | Update salary |
+| `DELETE` | `/:id` | Remove a salary record |
+
+---
+
+#### Payroll (`/api/v1/payroll`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Generate payroll for a single employee (HR only) |
+| `GET` | `/` | List generated payrolls (filterable by month, year) |
+| `GET` | `/:id` | Get a specific payroll document |
+| `GET` | `/leave-deductions/:id` | Get unpaid-leave deductions for an employee |
+| `POST` | `/bulk` | Generate bulk payroll for all/selected departments (HR only) |
+
+Employee access is restricted to their own payroll. HR can view and generate payrolls for all employees. Payroll documents can be exported as PDFs from the frontend.
+
+**Bulk payroll request body:**
+
+```json
+{
+  "month": 3,
+  "year": 2026,
+  "department": ["dept_id_1", "dept_id_2"],
+  "bulkBonus": [
+    { "reason": "Festival Bonus", "amount": 5000 }
+  ],
+  "bulkDeduction": [
+    { "reason": "Insurance Premium", "amount": 1500 }
+  ]
+}
+```
+
+If `department` is omitted, payroll is generated for **all** departments. `bulkBonus` and `bulkDeduction` are optional arrays applied to every employee in the batch.
+
+---
+
+#### Attendance (`/api/v1/attendance`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Record a punch-in or punch-out |
+| `GET` | `/` | Retrieve attendance records (HR gets all, Employee gets own) |
+
+Attendance records are created with a `type: "IN" | "OUT"` and a timestamp. HR analytics view supports filtering by department, month, and year.
+
+---
+
+#### Sync (`/api/v1/sync`)
+
+> Protected by `VerifyMiddleware`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Accepts a batch array of offline attendance punches and writes them to MongoDB |
+
+This endpoint is called exclusively by the frontend's `syncQueue.worker.ts` after the device comes back online. The controller processes the batch atomically.
+
+---
+
+#### Hiring (`/api/v1/hiring`)
+
+The Hiring module is subdivided into three sub-routers for managing job openings, applicants, and ATS scoring.
+
+**Job Openings** (`/api/v1/hiring/openings`)
+
+> All routes protected by `VerifyMiddleware`. HR-only endpoints.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a job opening with title, description, department, required skills (with proficiency levels) |
+| `GET` | `/` | List all job openings (HR) or public openings (applicants on job apply page) |
+| `GET` | `/:id` | Get opening details including attached skills and questions |
+| `PUT` | `/:id` | Update opening details, skills, or screening questions |
+| `DELETE` | `/:id` | Archive or delete a job opening |
+
+**Applicants** (`/api/v1/hiring/applicants`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Submit application (public) — requires name, email, phone, resume, and optional screening question answers |
+| `GET` | `/` | List applicants for an opening with pagination (HR only) |
+| `GET` | `/:applicantId` | Get detailed applicant profile including ATS score, interview rounds, resume link (HR only) |
+| `PUT` | `/:applicantId` | Update applicant status (APPLIED → INTERVIEWING → OFFERED → REJECTED) or notes |
+| `DELETE` | `/:applicantId` | Remove an applicant from consideration |
+| `POST` | `/signed-url` | Get S3 signed URL for resume upload |
+| `POST` | `/generate-ats/:openingId` | Trigger ATS scoring for all applicants of an opening (HR only) — sends event to SQS |
+| `GET` | `/ats-result/:openingId` | Long-poll endpoint that waits for ATS results from the resume processor worker (up to 2 minutes) |
+
+**ATS Results** — Each applicant record includes:
+- `score` — Normalized 0–1 ATS score (updated after scoring)
+- `atsBreakdown` — Detailed skill-by-skill TF/IDF/weight breakdown (optional, for debugging)
+
+**ATS Filtering** (`/api/v1/hiring/applicants/filter`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/by-score` | Bulk reject applicants below a minimum ATS score threshold (HR only) |
+| `POST` | `/by-rank` | Keep only the top N applicants by ATS score, reject others (HR only) |
+
+**Interview Rounds** (`/api/v1/hiring/rounds`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create an interview round (e.g., Phone Screen, Technical, Final) for an opening |
+| `GET` | `/` | List all rounds for an opening |
+| `PUT` | `/:roundId` | Update round details |
+| `DELETE` | `/:roundId` | Delete a round |
+
+**Interview Feedback** (`/api/v1/hiring/feedback`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Submit interview feedback for an applicant in a round (score, comments, pass/fail) |
+| `GET` | `/:applicantId` | Retrieve all interview feedback for an applicant |
+
+**Screening Questions** (`/api/v1/hiring/questions`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/` | Create a global or opening-specific screening question |
+| `GET` | `/` | List all screening questions |
+| `PUT` | `/:questionId` | Update a question |
+| `DELETE` | `/:questionId` | Delete a question |
+
+Applicant answers to screening questions are stored during application and can be reviewed in the applicant details panel.
+
+---
+
+## Applicant Tracking System (ATS)
+
+### Overview
+
+NexusHR integrates an **AI-powered ATS engine** that automatically ranks job applicants based on the semantic and lexical relevance of their resumes to the job opening's requirements. The system uses **TF-IDF (Term Frequency-Inverse Document Frequency)** combined with **semantic embeddings** to provide intelligent skill matching.
+
+### ATS Workflow
+
+```
+HR uploads job opening with required skills & proficiency weights
+       │
+       ▼
+HR clicks "Generate Latest ATS Score" in applicants list
+       │
+       ▼
+POST /api/v1/hiring/applicants/generate-ats/:openingId
+       │
+       ▼
+Backend: Invalidates stale Redis cache, sends event to SQS queue
+       │
+       ▼  SQS Queue (ATS Event)
+       │
+resume-processor worker
+  → Downloads all applicant resumes (PDF/DOCX)
+  → Tokenizes resume text into semantic tokens
+  → Generates embeddings for tokens and job skills
+  → Calculates TF (Term Frequency) for each skill
+  → Calculates IDF (Inverse Document Frequency) for each skill
+  → Computes raw score: Σ(TF × IDF × weight)
+  → Normalizes and ranks candidates
+  → Stores scores in MongoDB `applicants.score`
+  → Publishes results to Redis
+       │
+       ▼
+Frontend: Long-polls /api/v1/hiring/applicants/ats-result/:openingId
+  (waits up to 2 minutes for results from Redis)
+       │
+       ▼
+HR views ATS Ranking table with:
+  - Rank (1st place, 2nd place, etc.)
+  - Applicant name
+  - Normalized score (0–100%)
+  - Optional skill breakdown (TF/IDF values per skill)
+```
+
+### Scoring Algorithm
+
+**Term Frequency (TF):**
+- Tokenizes job skill names using the same strategy as resume tokenization to ensure matching
+- Searches for skill tokens in the resume text using semantic similarity (cosine distance on embeddings)
+- Blends semantic matching (70%) with frequency bonus (30%)
+- Exact-match shortcut: if the full skill name is literally found in the resume, TF = 1.0
+- Formula: `TF = min(1.0, maxSimilarity * 0.7 + log(1 + frequency) * 0.3)`
+
+**Inverse Document Frequency (IDF):**
+- Measures how discriminating a skill is across the applicant pool
+- Smoothed to avoid log(0): `IDF = log(1 + totalApplicants / applicantsWithSkill)`
+- Rarer skills have higher IDF values
+
+**Final Score:**
+- Aggregates across all required skills: `score = Σ(TF × IDF × skillWeight) / totalWeight`
+- Normalized to 0–1 by dividing by the sum of all skill weights
+- Min-max normalized across the candidate pool to spread scores meaningfully
+
+### Key Features
+
+1. **Semantic Skill Matching**: Uses embeddings to match synonyms, abbreviations, and variations (e.g., `"Node.js"` matches `"Node"`, `"JavaScript"` matches `"JS"`)
+2. **Proficiency-Weighted Scoring**: Multiplies each skill score by its assigned proficiency weight in the job opening
+3. **Multi-Format Resume Support**: Parses PDF and DOCX resumes
+4. **Async Worker Processing**: Handles scoring asynchronously via SQS to prevent backend timeouts on large applicant pools
+5. **Redis Caching**: Caches results with applicant count to detect staleness and invalidate stale scores
+6. **Bulk Filtering**: HR can auto-reject applicants below a score threshold or keep only the top N candidates
+
+### Configuration
+
+In the Job Opening creation/edit form:
+- Assign required skills with proficiency levels (1–5 or custom scale)
+- Proficiency level acts as a weight multiplier in the TF-IDF calculation
+- Higher weight = more important for candidate ranking
+
+### ATS Result Interpretation
+
+- **Score 0.8–1.0**: Excellent match — strong resume alignment with all key skills
+- **Score 0.5–0.8**: Good match — covers most required skills
+- **Score 0.2–0.5**: Moderate match — has some relevant skills but missing others
+- **Score 0.0–0.2**: Poor match — minimal skill overlap
+
+Scores are visually ranked with badges (Gold for 1st place, Silver for 2nd, Bronze for 3rd, etc.) in the HR dashboard.
+
+---
+
+## Client
+
+### Routing & Role-Based Access
+
+**`src/App.tsx`**
+
+The entire app is wrapped in `<ProtectedRoute>` — unauthenticated users are redirected to `/login`. After login, `<RoleBasedRedirect>` reads the user's role from Redux and sends them to their default page:
+
+- `HR` → `/employee`
+- `EMPLOYEE` → `/attendance`
+
+All pages are nested under a shared `<Layout>` component (sidebar + header).
+
+---
+
+### Pages
+
+| Route | Component | Role | Description |
+|-------|-----------|------|-------------|
+| `/login` | `Login.tsx` | Public | Email/password login form |
+| `/employee` | `Employee.tsx` | HR | Employee list with create/update/delete, paginated |
+| `/departments` | `Departments.tsx` | HR | Department management |
+| `/skills` | `Skills.tsx` | HR | Skill management |
+| `/salaries` | `Salaries.tsx` | HR | Salary structure management, paginated |
+| `/payroll` | `Payroll.tsx` | Both | HR: generate & view all payrolls. Employee: view own payroll |
+| `/attendance` | `Attendance.tsx` | Both | HR: analytics dashboard. Employee: punch in/out + history |
+| `/leaves` | `Leaves.tsx` | Both | HR: manage types, balances, requests. Employee: apply & track |
+| `/events` | `Events.tsx` | Both | Interactive organization-wide events calendar |
+| `/hiring` | `HiringDetails.tsx` | HR | Job openings & applicants with ATS scoring, interview rounds, bulk filtering |
+| `/job-apply` | `JobApply.tsx` | Public | Public job application portal with screening questions & resume upload |
+| `/applicant/:id` | `ApplicantDetails.tsx` | HR | Detailed applicant profile with ATS breakdown, interview feedback, resume review |
+
+---
+
+### Components
+
+Components live in `src/components/` and are organized by feature:
+
+- **`Layout`** — Shell with `Sidebar` and `Header`
+- **`Sidebar`** — Navigation links filtered by role
+- **`Header`** — User info + logout
+- **`leaves/`** — `ApplyLeaveModal`, leave type/balance/request tables
+- **`payroll/`** — Payroll table, filter controls
+- **`employee/`** — Employee form modal, employee table
+- **`departments/`, `skills/`, `salaries/`** — Respective CRUD tables and modals
+- **`Attendance/`** — Punch button, attendance history table, analytics charts (Recharts)
+
+All components use **shadcn/ui** primitives (Dialog, Select, Popover, Checkbox, etc.) styled with TailwindCSS.
+
+---
+
+### Hooks
+
+Custom hooks in `src/hooks/` abstract all data-fetching logic from page components. Each hook owns its module's state, API calls, and local sync state:
+
+| Hook | Description |
+|------|-------------|
+| `useLogin` | Login form state + auth API call |
+| `useEmployee` | Employee CRUD + pagination |
+| `useDepartments` | Department CRUD |
+| `useSkills` | Skill CRUD |
+| `useSalaries` | Salary CRUD + pagination |
+| `usePayroll` | Payroll generation + paginated fetch |
+| `useAttendance` | Punch in/out (with offline handling) + history fetch. Triggers `syncQueue.worker` on reconnect |
+| `useLeaves` | Aggregates leave types, balances, and requests. Merges local unsynced changes with API data |
+| `useEmployeeLeaves` | Employee-facing leave view (own balances + requests) |
+| `useHiringDetails` | Manages job opening applicants, ATS scoring trigger, result polling, and bulk filtering |
+| `useApplicantDetails` | Fetches applicant profile, resume, interview rounds, and feedback |
+| `useJobApply` | Public job application form + resume upload + screening questions |
+
+Hooks that support offline-first pass a `syncState` property to table rows, which renders an **"Unsynced"** badge for locally-cached but not-yet-sent mutations.
+
+---
+
+### State Management (Redux)
+
+**`src/store/index.ts`** uses Redux Toolkit's `configureStore` with a single slice:
+
+| Slice | State | Description |
+|-------|-------|-------------|
+| `userStateSlice` | `userDetails` | Stores the logged-in user's profile (id, name, role, etc.) after login. Cleared on logout. Used by `ProtectedRoute` and `RoleBasedRedirect`. |
+
+---
+
+### Utilities
+
+#### ApiCaller
+
+**`src/utils/ApiCaller.ts`**
+
+A typed generic wrapper around Axios with the following features:
+
+- **Base URL** from `VITE_API_BASE_URL` env var (defaults to `http://localhost:8000`)
+- **Offline detection**: Returns a `503` result immediately if `navigator.onLine` is `false` or an `ERR_NETWORK` error is thrown
+- **Automatic token refresh**: On a `401` response, it transparently hits `/api/v1/auth/refresh-access-token`. Concurrent requests during the refresh are queued (subscriber pattern) and replayed after the new token is issued
+- **Return type**: `ApiResult<T>` — a discriminated union `{ ok: true, response } | { ok: false, response }`
+
+```ts
+// Example usage
+const result = await ApiCaller<Body, ResponseType>({
+  requestType: "GET",
+  paths: ["api", "v1", "user", "get-users"],
+  queryParams: { page: 1, limit: 10 },
+});
+
+if (result.ok) {
+  console.log(result.response.data);
+}
+```
+
+#### DbManger (IndexedDB)
+
+**`src/utils/DbManger.ts`** — `OfflineAttendanceQueue`
+
+Manages a browser-side IndexedDB database (`attendance-queue`) with an object store (`punches`) for storing offline attendance records when the user is without internet.
+
+| Method | Description |
+|--------|-------------|
+| `init()` | Opens (or creates) the IndexedDB database, creates the `punches` store with a `createdAt` index |
+| `addPunch(type)` | Adds a `{ id: UUID, type: "IN"/"OUT", createdAt: timestamp }` record |
+| `getAllPunches()` | Returns all queued punches ordered by `createdAt` |
+| `deletePunch(id)` | Deletes a single punch by ID (called after successful sync) |
+| `clear()` | Clears all punches |
+
+A default singleton `attendanceQueue` is exported and initialized at module load time.
+
+#### OnlineStateChecker
+
+**`src/utils/OnlineStateChecker.ts`**
+
+Utility that listens to `window.online` / `window.offline` events and exposes an observable or callback for hooks to react to connectivity changes. Used by `useAttendance` to trigger the sync worker when the device reconnects.
+
+#### PdfGenerator
+
+**`src/utils/PdfGenerator.tsx`**
+
+A React PDF template built with `@react-pdf/renderer`. Generates formatted payslip PDFs from payroll data. Used in the Payroll page to allow employees and HR to download payslips.
+
+---
+
+### Web Workers
+
+#### `syncQueue.worker.ts`
+
+A dedicated **Web Worker** (runs off the main thread) that flushes queued offline attendance punches to the server. It operates entirely with raw `indexedDB` APIs (no `idb` wrapper, since workers can't import ES modules easily).
+
+**Lifecycle:**
+1. Main thread posts `{ type: "FLUSH", baseUrl }` when the device goes online
+2. Worker opens the same `attendance-queue` IndexedDB
+3. Batches punches (10 per batch) and `POST`s them to `/api/v1/sync`
+4. On success, deletes each synced punch from IndexedDB
+5. Posts `{ type: "FLUSH_COMPLETE" }` or `{ type: "FLUSH_ERROR", error }` back to the main thread
+
+#### `pdf.worker.tsx`
+
+A Web Worker for off-thread PDF generation, preventing UI blocking during large payslip renders.
+
+---
+
+## Offline-First Architecture
+
+```
+User punches IN/OUT (no internet)
+       │
+       ▼
+OfflineAttendanceQueue.addPunch()  ──→  IndexedDB (attendance-queue)
+       │
+       │  (device comes back online)
+       │
+       ▼
+OnlineStateChecker detects online event
+       │
+       ▼
+useAttendance triggers syncQueue.worker (FLUSH message)
+       │
+       ▼
+syncQueue.worker reads IndexedDB → batches → POST /api/v1/sync
+       │
+       ▼
+Backend Sync Controller → writes to MongoDB (Attendance collection)
+       │
+       ▼
+syncQueue.worker deletes synced records from IndexedDB
+       │
+       ▼
+Worker posts FLUSH_COMPLETE → UI refreshes attendance list
+```
+
+The "Unsynced" badge is shown in the attendance table for records that exist only in IndexedDB and haven't been confirmed by the server yet, giving users a clear visual indicator of pending items.
+
+---
+
+## Data Flow Diagram
+
+```
+Client                              Backend
+─────────────────────────────────── ──────────────────────────────────
+Login form
+  └─ POST /api/v1/auth/login ──────► AuthController.Login
+                                         │ bcrypt.compare
+                                         │ jwt.sign (access + refresh)
+  ◄─ Set-Cookie: accessToken ──────────┘
+
+Protected page load
+  └─ GET /api/v1/user/get-users ───► VerifyMiddleware (jwt.verify)
+     + cookies.accessToken             └─► UserController.GetUsers
+                                              └─► Mongoose.find()
+  ◄─ { data: [...users] } ───────────────────────────────────────────
+
+Token expiry (401)
+  ApiCaller intercepts
+  └─ POST /api/v1/auth/refresh ────► AuthController.RefreshToken
+  ◄─ new accessToken cookie                │ jwt.verify(refreshToken)
+  └─ Retry original request ───────────── │ jwt.sign(new accessToken)
+```
+
+---
+
+## API Response Format
+
+All endpoints return a consistent JSON envelope:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Success",
+  "data": { ... },
+  "success": true,
+  "errors": []
+}
+```
+
+Error responses follow the same shape with `success: false` and the appropriate HTTP status code:
+
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized",
+  "data": null,
+  "success": false,
+  "errors": []
+}
+```
+
+---
+
+*NexusHR — Built with ❤️ for Restroworks*

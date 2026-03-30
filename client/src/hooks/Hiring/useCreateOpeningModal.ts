@@ -1,0 +1,539 @@
+import { useState, useEffect, useCallback } from "react";
+import ApiCaller from "@/utils/ApiCaller";
+import { toast } from "sonner";
+import type {
+    CreateOpeningFormData,
+    RoundFormItem,
+    QuestionFormItem,
+    SkillFormItem,
+} from "@/types/hiring";
+import type { Department, Employee, Skill } from "@/types";
+
+interface UseCreateOpeningModalProps {
+    isOpen: boolean;
+    onSuccess: () => void;
+}
+
+const INITIAL_FORM: CreateOpeningFormData = {
+    title: "",
+    description: "",
+    status: "",
+    departmentId: "",
+    departmentName: "",
+    note: "",
+    HiringManager: "",
+    HiringManagerName: "",
+    expectedJoiningDate: "",
+    salaryMin: "",
+    salaryMax: "",
+    skills: [],
+    rounds: [],
+    questions: [],
+};
+
+const BLANK_ROUND: RoundFormItem = { name: "", description: "", type: "" };
+const BLANK_QUESTION: QuestionFormItem = { question: "", type: "", options: [] };
+
+export function useCreateOpeningModal({
+    isOpen,
+    onSuccess,
+}: UseCreateOpeningModalProps) {
+    const [step, setStep] = useState(1);
+    const [formData, setFormData] = useState<CreateOpeningFormData>(INITIAL_FORM);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+    // ---- Department search ----
+    const [deptQuery, setDeptQuery] = useState("");
+    const [deptResults, setDeptResults] = useState<Department[]>([]);
+    const [deptLoading, setDeptLoading] = useState(false);
+    const [isDeptOpen, setIsDeptOpen] = useState(false);
+
+    // ---- Hiring manager search ----
+    const [managerQuery, setManagerQuery] = useState("");
+    const [managerResults, setManagerResults] = useState<Employee[]>([]);
+    const [managerLoading, setManagerLoading] = useState(false);
+    const [isManagerOpen, setIsManagerOpen] = useState(false);
+
+    // Reset when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setStep(1);
+            setFormData(INITIAL_FORM);
+            setError(null);
+            setFieldErrors({});
+            setDeptQuery("");
+            setDeptResults([]);
+            setManagerQuery("");
+            setManagerResults([]);
+        }
+    }, [isOpen]);
+
+    // Search departments
+    useEffect(() => {
+        if (!deptQuery.trim()) {
+            fetchAllDepts();
+            return;
+        }
+        const tid = setTimeout(() => searchDepts(deptQuery), 300);
+        return () => clearTimeout(tid);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [deptQuery]);
+
+    const fetchAllDepts = async () => {
+        setDeptLoading(true);
+        try {
+            const result = await ApiCaller<null, any>({
+                requestType: "GET",
+                paths: ["api", "v1", "departments"],
+                queryParams: { page: "1", limit: "100" },
+            });
+            if (result.ok) {
+                const data = result.response.data;
+                const list = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.data)
+                    ? data.data
+                    : [];
+                setDeptResults(list);
+            }
+        } finally {
+            setDeptLoading(false);
+        }
+    };
+
+    const searchDepts = async (q: string) => {
+        setDeptLoading(true);
+        try {
+            const result = await ApiCaller<null, any>({
+                requestType: "GET",
+                paths: ["api", "v1", "search", "departments"],
+                queryParams: { query: q },
+            });
+            if (result.ok) {
+                const data = result.response.data;
+                setDeptResults(Array.isArray(data) ? data : data?.data ?? []);
+            }
+        } finally {
+            setDeptLoading(false);
+        }
+    };
+
+    // Search hiring managers – filtered by selected department
+    const searchManagers = useCallback(
+        async (q: string) => {
+            if (!formData.departmentId) return;
+            setManagerLoading(true);
+            try {
+                const queryParams: Record<string, string> = {
+                    deptId: formData.departmentId,
+                };
+                if (q.trim()) queryParams.query = q.trim();
+
+                const result = await ApiCaller<null, any>({
+                    requestType: "GET",
+                    paths: ["api", "v1", "search", "employees"],
+                    queryParams,
+                });
+                if (result.ok) {
+                    const data = result.response.data;
+                    const list = Array.isArray(data)
+                        ? data
+                        : Array.isArray(data?.data)
+                        ? data.data
+                        : [];
+                    setManagerResults(list);
+                }
+            } finally {
+                setManagerLoading(false);
+            }
+        },
+        [formData.departmentId]
+    );
+
+    useEffect(() => {
+        if (!formData.departmentId) {
+            setManagerResults([]);
+            return;
+        }
+        const tid = setTimeout(() => searchManagers(managerQuery), 300);
+        return () => clearTimeout(tid);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managerQuery, formData.departmentId]);
+
+    // ---- Select helpers ----
+    const selectDept = (dept: Department) => {
+        setFormData((prev) => ({
+            ...prev,
+            departmentId: dept._id,
+            departmentName: dept.name,
+            HiringManager: "",
+            HiringManagerName: "",
+        }));
+        setIsDeptOpen(false);
+        setDeptQuery("");
+    };
+
+    // ---- Skill search ----
+    const [skillQuery, setSkillQuery] = useState("");
+    const [skillResults, setSkillResults] = useState<Skill[]>([]);
+    const [skillLoading, setSkillLoading] = useState(false);
+    const [isSkillOpen, setIsSkillOpen] = useState(false);
+
+    const fetchAllSkills = async () => {
+        setSkillLoading(true);
+        try {
+            const result = await ApiCaller<null, any>({
+                requestType: "GET",
+                paths: ["api", "v1", "skills"],
+                queryParams: { page: "1", limit: "100" },
+            });
+            if (result.ok) {
+                const data = result.response.data;
+                const list = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.data)
+                    ? data.data
+                    : [];
+                setSkillResults(list);
+            }
+        } finally {
+            setSkillLoading(false);
+        }
+    };
+
+    const searchSkills = async (q: string) => {
+        setSkillLoading(true);
+        try {
+            const result = await ApiCaller<null, any>({
+                requestType: "GET",
+                paths: ["api", "v1", "search", "skills"],
+                queryParams: { query: q },
+            });
+            if (result.ok) {
+                const data = result.response.data;
+                setSkillResults(Array.isArray(data) ? data : data?.data ?? []);
+            }
+        } finally {
+            setSkillLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!skillQuery.trim()) {
+            fetchAllSkills();
+            return;
+        }
+        const tid = setTimeout(() => searchSkills(skillQuery), 300);
+        return () => clearTimeout(tid);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [skillQuery]);
+
+    const selectManager = (emp: Employee) => {
+        setFormData((prev) => ({
+            ...prev,
+            HiringManager: emp._id,
+            HiringManagerName: `${emp.firstName} ${emp.lastName}`,
+        }));
+        setIsManagerOpen(false);
+        setManagerQuery("");
+    };
+
+    // ---- Skill management ----
+    const addSkill = (skill: Skill, proficiencyLevel: number) => {
+        if (formData.skills.some((s) => s.skillId === skill._id)) {
+            toast.error("Skill already added");
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            skills: [
+                ...prev.skills,
+                {
+                    skillId: skill._id,
+                    skillName: skill.name,
+                    proficiencyLevel: Math.max(1, Math.min(5, proficiencyLevel)),
+                },
+            ],
+        }));
+        setIsSkillOpen(false);
+        setSkillQuery("");
+    };
+
+    const removeSkill = (skillId: string) => {
+        setFormData((prev) => ({
+            ...prev,
+            skills: prev.skills.filter((s) => s.skillId !== skillId),
+        }));
+    };
+
+    const updateSkillLevel = (skillId: string, level: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            skills: prev.skills.map((s) =>
+                s.skillId === skillId
+                    ? { ...s, proficiencyLevel: Math.max(1, Math.min(5, level)) }
+                    : s
+            ),
+        }));
+    };
+
+    // ---- Step 1 field change ----
+    const handleStep1Change = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+    };
+
+    const handleStatusChange = (value: string) => {
+        setFormData((prev) => ({ ...prev, status: value as CreateOpeningFormData["status"] }));
+        setFieldErrors((prev) => ({ ...prev, status: "" }));
+    };
+
+    // ---- Step 1 validation ----
+    const validateStep1 = () => {
+        const errs: Record<string, string> = {};
+        if (!formData.title.trim()) errs.title = "Title is required";
+        if (!formData.description.trim()) errs.description = "Description is required";
+        if (!formData.status) errs.status = "Status is required";
+        if (!formData.departmentId) errs.departmentId = "Department is required";
+        if (!formData.HiringManager) errs.HiringManager = "Hiring manager is required";
+        if (formData.skills.length === 0) errs.skills = "At least one skill is required";
+        setFieldErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
+    // ---- Step 2: Rounds ----
+    const addRound = () =>
+        setFormData((prev) => ({ ...prev, rounds: [...prev.rounds, { ...BLANK_ROUND }] }));
+
+    const removeRound = (idx: number) =>
+        setFormData((prev) => ({
+            ...prev,
+            rounds: prev.rounds.filter((_, i) => i !== idx),
+        }));
+
+    const updateRound = (idx: number, field: keyof RoundFormItem, value: string) =>
+        setFormData((prev) => {
+            const rounds = [...prev.rounds];
+            rounds[idx] = { ...rounds[idx], [field]: value };
+            return { ...prev, rounds };
+        });
+
+    const validateStep2 = () => {
+        for (const r of formData.rounds) {
+            if (!r.name.trim() || !r.type) {
+                setError("All rounds must have a name and type");
+                return false;
+            }
+        }
+        setError(null);
+        return true;
+    };
+
+    // ---- Step 3: Questions ----
+    const addQuestion = () =>
+        setFormData((prev) => ({
+            ...prev,
+            questions: [...prev.questions, { ...BLANK_QUESTION, options: [] }],
+        }));
+
+    const removeQuestion = (idx: number) =>
+        setFormData((prev) => ({
+            ...prev,
+            questions: prev.questions.filter((_, i) => i !== idx),
+        }));
+
+    const updateQuestion = (
+        idx: number,
+        field: keyof QuestionFormItem,
+        value: string | string[]
+    ) =>
+        setFormData((prev) => {
+            const questions = [...prev.questions];
+            questions[idx] = { ...questions[idx], [field]: value };
+            // Reset options when switching type to TEXT
+            if (field === "type" && value === "TEXT") {
+                questions[idx].options = [];
+            }
+            return { ...prev, questions };
+        });
+
+    const addOption = (qIdx: number) =>
+        setFormData((prev) => {
+            const questions = [...prev.questions];
+            questions[qIdx] = {
+                ...questions[qIdx],
+                options: [...questions[qIdx].options, ""],
+            };
+            return { ...prev, questions };
+        });
+
+    const updateOption = (qIdx: number, oIdx: number, value: string) =>
+        setFormData((prev) => {
+            const questions = [...prev.questions];
+            const options = [...questions[qIdx].options];
+            options[oIdx] = value;
+            questions[qIdx] = { ...questions[qIdx], options };
+            return { ...prev, questions };
+        });
+
+    const removeOption = (qIdx: number, oIdx: number) =>
+        setFormData((prev) => {
+            const questions = [...prev.questions];
+            questions[qIdx] = {
+                ...questions[qIdx],
+                options: questions[qIdx].options.filter((_, i) => i !== oIdx),
+            };
+            return { ...prev, questions };
+        });
+
+    const validateStep3 = () => {
+        for (const q of formData.questions) {
+            if (!q.question.trim() || !q.type) {
+                setError("All questions must have text and a type");
+                return false;
+            }
+            if (q.type === "MULTIPLE_CHOICE") {
+                if (q.options.length < 2) {
+                    setError("Multiple choice questions need at least 2 options");
+                    return false;
+                }
+                if (q.options.some((o) => !o.trim())) {
+                    setError("Multiple choice options cannot be empty");
+                    return false;
+                }
+            }
+        }
+        setError(null);
+        return true;
+    };
+
+    // ---- Navigation ----
+    const goNext = () => {
+        if (step === 1 && !validateStep1()) return;
+        if (step === 2 && !validateStep2()) return;
+        setError(null);
+        setStep((s) => Math.min(s + 1, 3));
+    };
+
+    const goBack = () => {
+        setError(null);
+        setStep((s) => Math.max(s - 1, 1));
+    };
+
+    // ---- Submit ----
+    const handleSubmit = async () => {
+        if (!validateStep3()) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const payload = {
+                title: formData.title.trim(),
+                description: formData.description.trim(),
+                status: formData.status,
+                departmentId: formData.departmentId,
+                note: formData.note.trim() || undefined,
+                HiringManager: formData.HiringManager,
+                skills: formData.skills.map((s) => ({
+                    skillId: s.skillId,
+                    proficiencyLevel: s.proficiencyLevel,
+                })),
+                expectedJoiningDate: formData.expectedJoiningDate || undefined,
+                salaryRange:
+                    formData.salaryMin || formData.salaryMax
+                        ? {
+                              min: formData.salaryMin ? parseInt(formData.salaryMin) : undefined,
+                              max: formData.salaryMax ? parseInt(formData.salaryMax) : undefined,
+                          }
+                        : undefined,
+                rounds: formData.rounds
+                    .filter((r) => r.name.trim() && r.type)
+                    .map((r) => ({
+                        name: r.name.trim(),
+                        description: r.description.trim() || undefined,
+                        type: r.type,
+                    })),
+                questions: formData.questions
+                    .filter((q) => q.question.trim() && q.type)
+                    .map((q) => ({
+                        question: q.question.trim(),
+                        type: q.type,
+                        options: q.type === "MULTIPLE_CHOICE" ? q.options.map((o) => o.trim()) : undefined,
+                    })),
+            };
+
+            const result = await ApiCaller<typeof payload, unknown>({
+                requestType: "POST",
+                paths: ["api", "v1", "hiring", "openings"],
+                body: payload,
+            });
+
+            if (result.ok) {
+                toast.success("Opening created successfully");
+                onSuccess();
+            } else {
+                setError(result.response.message || "Failed to create opening");
+            }
+        } catch (err) {
+            setError("An unexpected error occurred");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return {
+        step,
+        formData,
+        loading,
+        error,
+        fieldErrors,
+        // dept search
+        deptQuery,
+        setDeptQuery,
+        deptResults,
+        deptLoading,
+        isDeptOpen,
+        setIsDeptOpen,
+        selectDept,
+        // manager search
+        managerQuery,
+        setManagerQuery,
+        managerResults,
+        managerLoading,
+        isManagerOpen,
+        setIsManagerOpen,
+        selectManager,
+        // skill search
+        skillQuery,
+        setSkillQuery,
+        skillResults,
+        skillLoading,
+        isSkillOpen,
+        setIsSkillOpen,
+        addSkill,
+        removeSkill,
+        updateSkillLevel,
+        // step 1
+        handleStep1Change,
+        handleStatusChange,
+        // step 2 rounds
+        addRound,
+        removeRound,
+        updateRound,
+        // step 3 questions
+        addQuestion,
+        removeQuestion,
+        updateQuestion,
+        addOption,
+        updateOption,
+        removeOption,
+        // navigation
+        goNext,
+        goBack,
+        handleSubmit,
+    };
+}
