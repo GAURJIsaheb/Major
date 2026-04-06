@@ -6,7 +6,7 @@ Self-hosted FastAPI microservice that replaces AWS Rekognition with DeepFace (Fa
 
 | Variable | Description |
 |---|---|
-| `MONGODB_URI` | MongoDB connection string (e.g., `mongodb+srv://user:pass@cluster.mongodb.net/admin`). |
+| `MONGODB_URI` | MongoDB connection string . |
 | `MONGODB_DB` | Database name (default `face_verifier`). |
 | `FACE_COLLECTION` | Collection name for embeddings (default `face_embeddings`). |
 | `FACE_MODEL_NAME` | DeepFace model (default `Facenet`). |
