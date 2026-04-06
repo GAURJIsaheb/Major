@@ -1,10 +1,21 @@
 import { ApiError, ApiResponse, AsyncHandler, GenerateUploadUrl } from "../../../utils/index.js"
+import { registerFaceEmbedding } from "../../../utils/faceVerifier.js";
 import UserModel from "../models/users.models.js";
 import { SessionModel } from "../models/session.model.js";
 import Types from "../../../types/index.js"
 import { GenerateAccessToken, GenerateRefreshToken, VerifyRefreshToken } from "../Encrypts.js"
 import bcrypt from "bcrypt";
 import { v7 as uuid } from "uuid";
+
+const registerFaceForEmployee = (employeeId, profileImageUrl) => {
+  if (!employeeId || !profileImageUrl) {
+    return;
+  }
+
+  registerFaceEmbedding(employeeId, profileImageUrl).catch((error) => {
+    console.error(`[FaceRegistration] failed for ${employeeId}`, error);
+  });
+}
 
 
 class UserController {
@@ -24,7 +35,8 @@ class UserController {
     if (!parsedBody.success) {
       throw new ApiError(Types.Errors.BadRequest, "Please provide valid data to create employee")
     }
-    const { email, firstName, lastName, password, deptId, skills, profilePhoto, note } = parsedBody.data
+    const { email, firstName, lastName, password, deptId, skills, profileImage, note } = parsedBody.data
+    const profileImageUrl = profileImage?.trim();
 
 
     const savedUser = await UserModel.create({
@@ -32,7 +44,7 @@ class UserController {
       firstName: firstName,
       lastName: lastName,
       deptId: deptId,
-      profilePhoto: profilePhoto,
+      profileImage: profileImageUrl,
       note: note,
       skills: skills,
       passwordHash: password,
@@ -41,6 +53,8 @@ class UserController {
 
 
     console.log("SAVED USER :: ", savedUser);
+    const newEmployeeId = savedUser._id?.toString();
+    registerFaceForEmployee(newEmployeeId, profileImageUrl);
     return res.status(201).json(new ApiResponse(201, savedUser, "Created employee"))
 
   })
@@ -57,7 +71,8 @@ class UserController {
       throw new ApiError(Types.Errors.BadRequest, "Please provide valid data to create a HR");
     }
 
-    const { email, firstName, lastName, password, deptId, skills, profilePhoto, note } = parsedBody.data;
+    const { email, firstName, lastName, password, deptId, skills, profileImage, note } = parsedBody.data;
+    const profileImageUrl = profileImage?.trim();
 
 
 
@@ -66,7 +81,7 @@ class UserController {
       firstName: firstName,
       lastName: lastName,
       deptId: deptId,
-      profilePhoto: profilePhoto,
+      profileImage: profileImageUrl,
       note: note,
       skills: skills,
       passwordHash: password,
@@ -125,7 +140,7 @@ class UserController {
       lastName: savedUserDetail.lastName,
       role: savedUserDetail.role,
       deptId: savedUserDetail.deptId,
-      profilePhoto: savedUserDetail.profilePhoto,
+      profileImage: savedUserDetail.profileImage,
       note: savedUserDetail.note,
       skills: savedUserDetail.skills,
     }, "Login successful"))
@@ -282,7 +297,7 @@ class UserController {
         lastName: user.lastName,
         role: user.role,
         deptId: user.deptId,
-        profilePhoto: user.profilePhoto,
+        profileImage: user.profileImage,
         note: user.note,
         skills: user.skills,
         refreshUniqueToken: newRefreshUniqueToken
@@ -305,20 +320,22 @@ class UserController {
       throw new ApiError(Types.Errors.Forbidden, "You are not authorized to update this user");
     }
 
-    const { email, firstName, lastName, deptId, skills, profilePhoto, note } = parsedBody.data;
+    const { email, firstName, lastName, deptId, skills, profileImage, note } = parsedBody.data;
+    const profileImageUrl = profileImage?.trim();
 
     const user = await UserModel.findById(userId).select("+passwordHash");
     if (!user) {
       throw new ApiError(Types.Errors.NotFound, "User not found");
     }
+    const originalProfileImage = user.profileImage;
 
     user.email = email;
     user.firstName = firstName;
     user.lastName = lastName;
     user.deptId = deptId;
     user.skills = skills;
-    if (profilePhoto) {
-      user.profilePhoto = profilePhoto;
+    if (profileImageUrl) {
+      user.profileImage = profileImageUrl;
     }
     if (note) {
       user.note = note;
@@ -327,6 +344,11 @@ class UserController {
     await user.save();
 
     user.passwordHash = undefined;
+
+    if (profileImageUrl && profileImageUrl !== originalProfileImage) {
+      const employeeId = user._id?.toString();
+      registerFaceForEmployee(employeeId, profileImageUrl);
+    }
 
     return res.status(200).json(new ApiResponse(200, user, "User updated successfully"));
   })

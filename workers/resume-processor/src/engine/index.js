@@ -11,14 +11,24 @@ async function ATSEngine(openingId, applicants, openingSkills) {
     console.log(`[ATS] Starting processing for opening ${openingId}`);
 
     // Step 1: Download all resumes
-    const downloadedResumes = await Promise.all(
-      applicants.map(async (applicant) => {
-        const { _id, resume } = applicant;
-        const filePath = await DownloadPdf(resume, _id.toString(), openingId);
-        console.log(`[ATS] Resume for ${_id} downloaded at ${filePath}`);
-        return { _id, filePath };
-      })
-    );
+    const downloadedResumes = (
+      await Promise.all(
+        applicants.map(async (applicant) => {
+          const { _id, resume } = applicant;
+          const filePath = await DownloadPdf(resume, _id.toString(), openingId);
+          if (!filePath) {
+            return null;
+          }
+          console.log(`[ATS] Resume for ${_id} downloaded at ${filePath}`);
+          return { _id, filePath };
+        })
+      )
+    ).filter(Boolean);
+
+    if (downloadedResumes.length === 0) {
+      console.warn(`[ATS] No valid resumes could be downloaded for opening ${openingId}`);
+      return [];
+    }
 
     // Step 2: Parse and tokenize all resumes
     console.log(`[ATS] Parsing ${downloadedResumes.length} resumes...`);
@@ -55,7 +65,8 @@ async function ATSEngine(openingId, applicants, openingSkills) {
     }
 
     if (allResumeData.length === 0) {
-      throw new Error("No resumes could be processed");
+      console.warn(`[ATS] No resumes could be parsed for opening ${openingId}`);
+      return [];
     }
 
     // Step 3: Get all unique tokens from all resumes

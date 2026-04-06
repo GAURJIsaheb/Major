@@ -15,7 +15,7 @@ export interface EventItem {
         firstName: string;
         lastName: string;
         email: string;
-        profilePhoto?: string;
+        profileImage?: string;
     }[];
     departmentDetails?: {
         _id: string;

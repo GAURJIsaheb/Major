@@ -1,9 +1,6 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import {
-  CompareFacesCommand,
-  RekognitionClient,
-} from "@aws-sdk/client-rekognition";
 import SysConf from "../../conf/config.js";
+import { verifyFaceUsingService } from "../services/FaceVerifier.js";
 
 const Config = new SysConf().MustLoad();
 const s3Client = new S3Client({
@@ -11,9 +8,11 @@ const s3Client = new S3Client({
   endpoint: Config.S3_ENDPOINT || undefined,
   forcePathStyle: Config.S3_FORCE_PATH_STYLE,
 });
-const rekognitionClient = new RekognitionClient({
-  region: Config.REKOGNITION_REGION,
-});
+
+function normalizeContentType(value) {
+  if (!value) return "image/jpeg";
+  return value.split(";")[0].trim().toLowerCase();
+}
 
 async function downloadBuffer(bucket, key) {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
@@ -27,50 +26,57 @@ async function downloadBuffer(bucket, key) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
 
-  return Buffer.concat(chunks);
+  return {
+    buffer: Buffer.concat(chunks),
+    contentType: normalizeContentType(response.ContentType),
+  };
 }
 
-async function MatchFaces(profileLocation, punchLocation) {
-  if (
-    !profileLocation?.bucket ||
-    !profileLocation?.key ||
-    !punchLocation?.bucket ||
-    !punchLocation?.key
-  ) {
+async function MatchFaces(employeeId, punchLocation) {
+  if (!employeeId) {
     return {
       match: false,
       similarity: null,
-      error: "Missing image references for Rekognition",
+      error: "Missing employee ID for verification",
+    };
+  }
+
+  if (!punchLocation?.bucket || !punchLocation?.key) {
+    return {
+      match: false,
+      similarity: null,
+      error: "Invalid punch photo location",
     };
   }
 
   try {
-    const [sourceBuffer, targetBuffer] = await Promise.all([
-      downloadBuffer(profileLocation.bucket, profileLocation.key),
-      downloadBuffer(punchLocation.bucket, punchLocation.key),
-    ]);
+    const { buffer, contentType } = await downloadBuffer(
+      punchLocation.bucket,
+      punchLocation.key,
+    );
 
-    const command = new CompareFacesCommand({
-      SourceImage: { Bytes: sourceBuffer },
-      TargetImage: { Bytes: targetBuffer },
-      SimilarityThreshold: 80,
-    });
+    const verification = await verifyFaceUsingService(
+      employeeId,
+      buffer,
+      contentType,
+    );
 
-    const { FaceMatches } = await rekognitionClient.send(command);
-    const faceMatch = FaceMatches?.[0];
+    const similarity =
+      typeof verification?.confidence === "number"
+        ? Number(verification.confidence.toFixed(4))
+        : null;
 
     return {
-      match: Boolean(faceMatch),
-      similarity: faceMatch?.Similarity
-        ? Number(faceMatch.Similarity.toFixed(4))
-        : null,
+      match: Boolean(verification?.match),
+      similarity,
+      threshold: verification?.threshold ?? null,
     };
   } catch (error) {
     const detail =
       error?.name && error?.message
         ? `${error.name}: ${error.message}`
-        : error?.message || "Unknown Rekognition error";
-    console.error("Recognition CompareFaces failed:", detail);
+        : error?.message || "Unknown verification error";
+    console.error("Face verification failed:", detail);
     return {
       match: false,
       similarity: null,

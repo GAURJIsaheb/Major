@@ -31,7 +31,7 @@ export interface LeaveRequest {
         firstName: string;
         lastName: string;
         email: string;
-        profilePhoto?: string;
+        profileImage?: string;
     };
     type: { _id: string; name: string } | string;
     quantity: number;
@@ -178,7 +178,7 @@ export default function LeaveRequestsTable({ requests, onRefresh }: LeaveRequest
                                         <EmployeeAvatar
                                             firstName={req.requestedBy?.firstName}
                                             lastName={req.requestedBy?.lastName}
-                                            profilePhoto={req.requestedBy?.profilePhoto}
+                                            profileImage={req.requestedBy?.profileImage}
                                         />
                                         <div className="min-w-0">
                                             <p className="font-semibold text-sm truncate">

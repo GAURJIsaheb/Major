@@ -562,7 +562,7 @@ export default function EmployeeDetails() {
                             <EmployeeAvatar
                                 firstName={employee.firstName}
                                 lastName={employee.lastName}
-                                profilePhoto={employee.profilePhoto}
+                                profileImage={employee.profileImage}
                                 className="h-14 w-14"
                                 textClassName="text-lg"
                             />
@@ -584,7 +584,7 @@ export default function EmployeeDetails() {
                                 <EmployeeAvatar
                                     firstName={employee.firstName}
                                     lastName={employee.lastName}
-                                    profilePhoto={employee.profilePhoto}
+                                    profileImage={employee.profileImage}
                                     className="h-14 w-14 rounded-2xl"
                                     textClassName="text-lg"
                                 />

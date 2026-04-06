@@ -17,7 +17,10 @@ const EnvSchema = zod.object({
   S3_FORCE_PATH_STYLE: zod
     .preprocess((value) => value === "true", zod.boolean())
     .default(false),
-  REKOGNITION_REGION: zod.string().min(1),
+  FACE_VERIFIER_URL: zod.string().min(1),
+  FACE_VERIFIER_TIMEOUT_MS: zod
+    .preprocess((value) => Number(value), zod.number().min(0))
+    .optional(),
 });
 
 class Config {

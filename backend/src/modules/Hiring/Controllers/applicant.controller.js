@@ -207,7 +207,7 @@ class ApplicantController {
       );
     }
 
-    const signedUrl = await GenerateUploadUrl(fileName, contentType, "resumes");
+    const signedUrl = await GenerateUploadUrl(fileName, contentType, "register-photos-major");
     return res
       .status(200)
       .json(

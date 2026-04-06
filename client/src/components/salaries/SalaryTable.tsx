@@ -30,7 +30,7 @@ interface User {
     firstName: string;
     lastName: string;
     email: string;
-    profilePhoto?: string;
+    profileImage?: string;
     deptId?: {
         _id: string;
         name: string;
@@ -157,7 +157,7 @@ const SalaryTable: React.FC<SalaryTableProps> = ({ salaries, isHR, onEdit, onDel
                                             <EmployeeAvatar
                                                 firstName={salary.userId?.firstName}
                                                 lastName={salary.userId?.lastName}
-                                                profilePhoto={salary.userId?.profilePhoto}
+                                                profileImage={salary.userId?.profileImage}
                                             />
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-sm truncate">

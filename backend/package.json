@@ -29,14 +29,14 @@
     "dns": "^0.2.2",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "form-data": "^4.0.5",
     "ioredis": "5.9.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.6",
     "redis": "^5.10.0",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
-  }
-  ,
+  },
   "devDependencies": {
     "cross-env": "^7.0.3"
   }

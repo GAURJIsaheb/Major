@@ -124,7 +124,7 @@ class PayrollController {
                 .find(filter)
                 .sort({ _id: -1 })
                 .populate("salary")
-                .populate("user", "firstName lastName email profilePhoto");
+                .populate("user", "firstName lastName email profileImage");
 
             if (limitQuery !== "all") {
                 queryOptions = queryOptions.skip(skip).limit(limit);
@@ -162,7 +162,7 @@ class PayrollController {
             .find(filter)
             .sort({ _id: -1 })
             .populate("salary")
-            .populate("user", "firstName lastName email profilePhoto");
+            .populate("user", "firstName lastName email profileImage");
 
         if (limitQuery !== "all") {
             queryOptions = queryOptions.skip(skip).limit(limit);

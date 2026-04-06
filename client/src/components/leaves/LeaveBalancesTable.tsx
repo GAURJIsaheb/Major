@@ -25,7 +25,7 @@ export interface UserLeaveBalance {
     firstName: string;
     lastName: string;
     email: string;
-    profilePhoto?: string;
+    profileImage?: string;
     department?: string;
     balances: LeaveBalanceEntry[];
 }
@@ -115,7 +115,7 @@ export default function LeaveBalancesTable({ users, onEdit }: LeaveBalancesTable
                                         <EmployeeAvatar
                                             firstName={user.firstName}
                                             lastName={user.lastName}
-                                            profilePhoto={user.profilePhoto}
+                                            profileImage={user.profileImage}
                                         />
                                         <div className="min-w-0">
                                             <p className="font-semibold text-sm truncate">

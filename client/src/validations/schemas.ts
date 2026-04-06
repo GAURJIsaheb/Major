@@ -7,7 +7,7 @@ export const CreateEmployeeSchema = z.object({
     lastName: z.string().min(1, "Please provide last name").trim(),
     password: z.string().min(8, "Password must be at least 8 characters long"),
     deptId: z.string().min(1, "Please select a department"),
-    profilePhoto: z.string().min(1, "Profile photo is required"),
+    profileImage: z.string().min(1, "Profile image is required"),
     note: z.string().optional(),
     skills: z.array(
         z.object({
@@ -22,7 +22,7 @@ export const UpdateEmployeeSchema = z.object({
     firstName: z.string().min(1, "Please provide first name").trim().optional(),
     lastName: z.string().min(1, "Please provide last name").trim().optional(),
     deptId: z.string().optional(),
-    profilePhoto: z.string().optional(),
+    profileImage: z.string().optional(),
     note: z.string().optional(),
     skills: z.array(
         z.object({

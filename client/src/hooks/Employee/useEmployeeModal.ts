@@ -25,12 +25,12 @@ export function useEmployeeModal({ isOpen, onClose, initialData, onSuccess }: Us
     // Image upload
     const {
         previewUrl,
-        photoUrl,
+        profileImageUrl,
         uploading,
         uploadError,
         handleFileSelect,
         reset: resetImage,
-    } = useImageUpload({ initialUrl: initialData?.profilePhoto });
+    } = useImageUpload({ initialUrl: initialData?.profileImage });
 
     // Data for selects
     const [departments, setDepartments] = useState<Department[]>([]);
@@ -112,7 +112,7 @@ export function useEmployeeModal({ isOpen, onClose, initialData, onSuccess }: Us
                 note: initialData.note || "",
             });
             setSelectedSkills(initialSkills);
-            resetImage(initialData.profilePhoto);
+            resetImage(initialData.profileImage);
         } else {
             setFormData({
                 firstName: "",
@@ -162,11 +162,14 @@ export function useEmployeeModal({ isOpen, onClose, initialData, onSuccess }: Us
         setFieldErrors({});
 
         try {
-        const payload = {
+        const payload: Record<string, any> = {
             ...formData,
             skills: selectedSkills,
-            profilePhoto: photoUrl || "",
         };
+
+        if (profileImageUrl) {
+            payload.profileImage = profileImageUrl;
+        }
         const sanitizedPayload = { ...payload };
         if (!sanitizedPayload.deptId) {
             delete sanitizedPayload.deptId;

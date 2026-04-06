@@ -305,7 +305,7 @@ const Attendance = () => {
                                                                 <EmployeeAvatar
                                                                     firstName={record.user?.firstName}
                                                                     lastName={record.user?.lastName}
-                                                                    profilePhoto={record.user?.profilePhoto}
+                                                                    profileImage={record.user?.profileImage}
                                                                     className="h-8 w-8"
                                                                     textClassName="text-xs"
                                                                 />

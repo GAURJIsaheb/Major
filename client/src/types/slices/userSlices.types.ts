@@ -4,7 +4,7 @@ export interface UserDetails {
     lastName: string;
     email: string;
     role: string;
-    profilePhoto?: string;
+    profileImage?: string;
 }
 
 export interface Employee {
@@ -14,7 +14,7 @@ export interface Employee {
     lastName: string;
     email: string;
     role: string;
-    profilePhoto?: string;
+    profileImage?: string;
     deptId?: string | { _id: string; name: string };
     skills?: (string | { _id: string; name: string })[];
     note?: string;

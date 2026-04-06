@@ -41,7 +41,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
-    profilePhoto: {
+    profileImage: {
       type: String,
     },
     payroll: [
@@ -106,6 +106,12 @@ UserSchema.index({
   lastName: "text",
   email: "text",
   role: "text",
+})
+
+UserSchema.pre("init", function (doc) {
+  if (!doc.profileImage && doc.profilePhoto) {
+    doc.profileImage = doc.profilePhoto;
+  }
 })
 
 

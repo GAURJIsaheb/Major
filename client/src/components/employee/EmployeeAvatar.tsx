@@ -1,41 +1,42 @@
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+
+const FALLBACK_AVATAR_SRC = "/avatar-placeholder.svg";
 
 interface EmployeeAvatarProps {
     firstName?: string;
     lastName?: string;
-    profilePhoto?: string;
+    profileImage?: string;
     className?: string;
-    textClassName?: string;
 }
 
 export default function EmployeeAvatar({
     firstName,
     lastName,
-    profilePhoto,
+    profileImage,
     className = "h-9 w-9",
-    textClassName = "text-xs",
 }: EmployeeAvatarProps) {
-    const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`;
+    const [hasImageError, setHasImageError] = useState(false);
 
-    if (profilePhoto) {
-        return (
-            <img
-                src={profilePhoto}
-                alt={`${firstName} ${lastName}`}
-                className={cn("rounded-full object-cover shrink-0 shadow-sm", className)}
-            />
-        );
-    }
+    useEffect(() => {
+        setHasImageError(false);
+    }, [profileImage]);
+
+    const displayName = [firstName, lastName].filter(Boolean).join(" ").trim();
+    const altText = displayName || "Employee avatar";
+    const imageSrc = profileImage && !hasImageError ? profileImage : FALLBACK_AVATAR_SRC;
 
     return (
-        <div
-            className={cn(
-                "flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold shrink-0 shadow-sm",
-                className,
-                textClassName,
-            )}
-        >
-            {initials}
-        </div>
+        <img
+            src={imageSrc}
+            alt={altText}
+            title={altText}
+            className={cn("rounded-full object-cover shrink-0 shadow-sm", className)}
+            onError={() => {
+                if (profileImage) {
+                    setHasImageError(true);
+                }
+            }}
+        />
     );
 }

@@ -52,9 +52,9 @@ export default function EmployeeModal({ isOpen, onClose, initialData, onSuccess 
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
                     {error && <p className="text-red-500 text-sm">{error}</p>}
 
-                    {/* Profile Photo Upload */}
+                    {/* Profile Image Upload */}
                     <div className="grid gap-2">
-                        <Label>Profile Photo {!initialData && <span className="text-red-500">*</span>}</Label>
+                        <Label>Profile Image {!initialData && <span className="text-red-500">*</span>}</Label>
                         <div className="flex items-center gap-4">
                             <div
                                 className="relative h-20 w-20 rounded-full border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors flex items-center justify-center overflow-hidden bg-muted/30"
@@ -76,7 +76,7 @@ export default function EmployeeModal({ isOpen, onClose, initialData, onSuccess 
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
                                 >
-                                    {uploading ? "Uploading..." : previewUrl ? "Change Photo" : "Upload Photo"}
+                                {uploading ? "Uploading..." : previewUrl ? "Change Image" : "Upload Image"}
                                 </Button>
                                 <p className="text-xs text-muted-foreground">JPG, PNG, max 5MB</p>
                             </div>
@@ -93,7 +93,7 @@ export default function EmployeeModal({ isOpen, onClose, initialData, onSuccess 
                             }}
                         />
                         {uploadError && <p className="text-red-500 text-xs">{uploadError}</p>}
-                        {fieldErrors.profilePhoto && <p className="text-red-500 text-xs">{fieldErrors.profilePhoto}</p>}
+                        {fieldErrors.profileImage && <p className="text-red-500 text-xs">{fieldErrors.profileImage}</p>}
                     </div>
 
                     <div className="grid gap-2">

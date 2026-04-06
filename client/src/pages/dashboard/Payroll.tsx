@@ -417,7 +417,7 @@ const Payroll = () => {
                                                             <EmployeeAvatar
                                                                 firstName={user.firstName}
                                                                 lastName={user.lastName}
-                                                                profilePhoto={user.profilePhoto}
+                                                                profileImage={user.profileImage}
                                                                 className="h-9 w-9"
                                                             />
                                                             <div>

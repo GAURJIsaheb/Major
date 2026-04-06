@@ -15,7 +15,7 @@ class EmployeeRolesController {
     if (!parsedBody.success) {
       throw new ApiError(Types.Errors.UnprocessableData, "Please provide valid data", parsedBody.error);
     }
-    const { firstName, lastName, email, password, skills, profilePhoto, note } = parsedBody.data;
+    const { firstName, lastName, email, password, skills, profileImage, note } = parsedBody.data;
 
 
     const savedUser = await this.userRepo.create({
@@ -23,7 +23,7 @@ class EmployeeRolesController {
       firstName: firstName,
       lastName: lastName,
       deptId: req.user.dept,
-      profilePhoto: profilePhoto,
+      profileImage: profileImage,
       note: note,
       skills: skills,
       passwordHash: password,
@@ -65,7 +65,7 @@ class EmployeeRolesController {
     }
 
 
-    const { email, firstName, lastName, skills, profilePhoto, note } = parsedBody.data;
+    const { email, firstName, lastName, skills, profileImage, note } = parsedBody.data;
 
     const user = await this.userRepo.findById(userId).select("+passwordHash");
     if (!user) {
@@ -76,8 +76,8 @@ class EmployeeRolesController {
     user.firstName = firstName;
     user.lastName = lastName;
     user.skills = skills;
-    if (profilePhoto) {
-      user.profilePhoto = profilePhoto;
+    if (profileImage) {
+      user.profileImage = profileImage;
     }
     if (note) {
       user.note = note;

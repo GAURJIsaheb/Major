@@ -3,7 +3,7 @@ import ApiCaller from "@/utils/ApiCaller";
 import axios from "axios";
 
 interface UseImageUploadOptions {
-    /** Initial profile photo URL (for edit mode) */
+    /** Initial profile image URL (for edit mode) */
     initialUrl?: string;
 }
 
@@ -13,13 +13,13 @@ interface SignedUrlResponse {
 
 export function useImageUpload({ initialUrl }: UseImageUploadOptions = {}) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(initialUrl ?? null);
-    const [photoUrl, setPhotoUrl] = useState<string | null>(initialUrl ?? null);
+    const [profileImageUrl, setProfileImageUrl] = useState<string | null>(initialUrl ?? null);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
 
     const reset = useCallback((url?: string) => {
         setPreviewUrl(url ?? null);
-        setPhotoUrl(url ?? null);
+        setProfileImageUrl(url ?? null);
         setUploading(false);
         setUploadError(null);
     }, []);
@@ -69,12 +69,12 @@ export function useImageUpload({ initialUrl }: UseImageUploadOptions = {}) {
 
             // Step 3: Construct the public URL from the signed URL (strip query params)
             const publicUrl = signedUrl.split("?")[0];
-            setPhotoUrl(publicUrl);
+            setProfileImageUrl(publicUrl);
         } catch (err) {
             console.error("Image upload failed:", err);
             setUploadError("Failed to upload image. Please try again.");
             setPreviewUrl(initialUrl ?? null);
-            setPhotoUrl(initialUrl ?? null);
+            setProfileImageUrl(initialUrl ?? null);
         } finally {
             setUploading(false);
         }
@@ -82,7 +82,7 @@ export function useImageUpload({ initialUrl }: UseImageUploadOptions = {}) {
 
     return {
         previewUrl,
-        photoUrl,
+        profileImageUrl,
         uploading,
         uploadError,
         handleFileSelect,

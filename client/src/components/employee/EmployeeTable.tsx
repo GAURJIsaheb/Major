@@ -166,7 +166,7 @@ export default function EmployeeTable({ employees, onEdit, startIndex = 1 }: Emp
                                             <EmployeeAvatar
                                                 firstName={employee.firstName}
                                                 lastName={employee.lastName}
-                                                profilePhoto={employee.profilePhoto}
+                                                profileImage={employee.profileImage}
                                             />
                                             <div className="min-w-0">
                                                 <p className="font-semibold text-sm truncate">

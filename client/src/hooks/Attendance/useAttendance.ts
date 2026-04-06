@@ -22,7 +22,7 @@ export interface AttendanceRecord {
         firstName: string;
         lastName: string;
         email: string;
-        profilePhoto?: string;
+        profileImage?: string;
         deptId?: Department;
     };
     date: string;
