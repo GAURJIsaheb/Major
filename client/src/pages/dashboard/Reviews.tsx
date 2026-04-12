@@ -19,7 +19,7 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useMyReviews } from "@/hooks/hiring/useMyReviews";
+import { useMyReviews } from "@/hooks/Hiring/useMyReviews";
 import type { MyInterview, Reviewer } from "@/types/hiring";
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
@@ -329,18 +329,18 @@ export default function Reviews() {
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-8 px-2 sm:px-3">
+        <div className="w-full max-w-4xl mx-auto flex flex-col gap-6 animate-slide-up-fade pb-8 px-2 sm:px-3">
             {/* Page header */}
             <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
-                <div className="relative px-5 py-5 bg-card">
-                    <div className="absolute top-0 right-0 w-72 h-72 bg-foreground/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="relative px-5 py-6 bg-card">
+                    <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500/6 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
                     <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                <CalendarCheck2 className="h-5 w-5 text-primary" />
+                            <div className="h-12 w-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800/40 flex items-center justify-center shrink-0">
+                                <CalendarCheck2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-foreground tracking-tight">
+                                <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
                                     My Reviews
                                 </h1>
                                 <p className="text-sm text-muted-foreground mt-0.5">
@@ -358,20 +358,20 @@ export default function Reviews() {
             </Card>
 
             {/* Filter bar */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
                 {FILTERS.map((f) => (
-                    <Button
+                    <button
                         key={f.value}
-                        variant={filter === f.value ? "default" : "outline"}
-                        size="sm"
-                        className={cn(
-                            "text-xs transition-all",
-                            filter === f.value && "shadow-md shadow-primary/20",
-                        )}
                         onClick={() => setFilter(f.value)}
+                        className={cn(
+                            "px-4 h-8 rounded-full text-xs font-semibold transition-all duration-200",
+                            filter === f.value
+                                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                        )}
                     >
                         {f.label}
-                    </Button>
+                    </button>
                 ))}
             </div>
 

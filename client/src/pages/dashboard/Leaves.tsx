@@ -135,19 +135,19 @@ export default function Leaves() {
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-8">
+        <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 animate-slide-up-fade pb-8">
             {/* Header Card */}
             <div className="rounded-2xl relative overflow-hidden bg-card p-6 sm:p-8 shadow-sm border border-border/50">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-foreground/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-foreground/3 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/6 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-green-500/4 rounded-full blur-2xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
 
                 <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5 z-10">
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted/50 backdrop-blur-md shadow-inner border border-border/50">
-                            <TreePalm className="h-7 w-7 text-foreground" />
+                        <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/40">
+                            <TreePalm className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Leave Management</h1>
+                            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Leave Management</h1>
                             <p className="text-muted-foreground text-sm sm:text-base mt-1 font-medium">Manage leave types and employee leave balances</p>
                         </div>
                     </div>
@@ -197,7 +197,7 @@ export default function Leaves() {
 
                 {/* Leave Types Tab */}
                 <TabsContent value="types">
-                    <div className="bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 rounded-2xl shadow-xl shadow-primary/5 border border-border/40 overflow-hidden">
+                    <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
                         {leaveTypesLoading ? (
                             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground w-full">
                                 <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mb-4" />
@@ -229,7 +229,7 @@ export default function Leaves() {
 
                 {/* Leave Balances Tab */}
                 <TabsContent value="balances">
-                    <div className="bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 rounded-2xl shadow-xl shadow-primary/5 border border-border/40 overflow-hidden">
+                    <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
                         {balancesLoading ? (
                             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground w-full">
                                 <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mb-4" />
@@ -306,7 +306,7 @@ export default function Leaves() {
                         </div>
                     )}
 
-                    <div className="bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 rounded-2xl shadow-xl shadow-primary/5 border border-border/40 overflow-hidden">
+                    <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
                         {requestsLoading ? (
                             <div className="flex flex-col items-center justify-center py-24 text-muted-foreground w-full">
                                 <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mb-4" />
