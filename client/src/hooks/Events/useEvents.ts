@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import ApiCaller from "@/utils/ApiCaller";
 import { useAppSelector } from "@/store/hooks";
-import type { EventItem } from "@/types/events";
+import { useBulletins } from "@/hooks/Bulletins/useBulletins";
+import type { EventItem, EventType } from "@/types/events";
 
 export type EventFilter = "all" | "employee" | "department";
 
@@ -28,6 +29,8 @@ export function useEvents() {
     const [filter, setFilter] = useState<EventFilter>("all");
     const [typeFilter, setTypeFilter] = useState<string>("");
     const [loading, setLoading] = useState(false);
+
+    const { visible: bulletins } = useBulletins();
 
     // Day dialog
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
@@ -195,9 +198,33 @@ export function useEvents() {
     };
 
     // Map events to dates
+    const bulletinEvents = useMemo(() => {
+        return bulletins.map((bulletin) => {
+            const referenceDate = bulletin.createdAt || bulletin.expiresAt || new Date().toISOString();
+            const eventDate = new Date(referenceDate);
+            return {
+                _id: `bulletin-${bulletin._id}`,
+                name: bulletin.title,
+                description: bulletin.message,
+                date: eventDate.toISOString(),
+                time: eventDate.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                }),
+                type: "OTHER" as EventType,
+                forAll: true,
+                createdAt: bulletin.createdAt,
+                updatedAt: bulletin.expiresAt,
+                source: "BULLETIN" as const,
+            };
+        });
+    }, [bulletins]);
+
+    const eventsWithBulletins = useMemo(() => [...events, ...bulletinEvents], [events, bulletinEvents]);
+
     const eventsByDate = useMemo(() => {
         const map: Record<number, EventItem[]> = {};
-        events.forEach((event) => {
+        eventsWithBulletins.forEach((event) => {
             const eventDate = new Date(event.date);
             if (eventDate.getMonth() + 1 === month && eventDate.getFullYear() === year) {
                 const day = eventDate.getDate();
@@ -206,7 +233,7 @@ export function useEvents() {
             }
         });
         return map;
-    }, [events, month, year]);
+    }, [eventsWithBulletins, month, year]);
 
     // Events for selected date
     const eventsForSelectedDate = useMemo(() => {

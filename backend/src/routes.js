@@ -12,6 +12,8 @@ import EventRoutes from "./modules/Events/Routes/events.routes.js";
 import AssetsRoutes from "./modules/Assets/Routes/assets.routes.js";
 import HiringRoutes from "./modules/Hiring/Routers/hiring.routes.js";
 import PermissionsRoutes from "./modules/Roles/Routes/permissions.routes.js";
+import BulletinRoutes from "./modules/Bulletins/Routes/bulletin.routes.js";
+import ChatRoutes from "./modules/Chat/Routes/chat.routes.js";
 
 class Routes {
   constructor() {
@@ -30,6 +32,8 @@ class Routes {
     this.hiringRoutes = new HiringRoutes().routes();
 
     this.permissionsRoutes = new PermissionsRoutes().routes();
+    this.bulletinRoutes = new BulletinRoutes().routes();
+    this.chatRoutes = new ChatRoutes().routes();
   }
   routes() {
     this.router.use("/", this.userRoutes);
@@ -45,6 +49,8 @@ class Routes {
     this.router.use("/assets", this.assetsRoutes);
     this.router.use("/hiring", this.hiringRoutes);
     this.router.use("/permissions", this.permissionsRoutes);
+    this.router.use("/bulletins", this.bulletinRoutes);
+    this.router.use("/chat", this.chatRoutes);
     return this.router;
   }
 }

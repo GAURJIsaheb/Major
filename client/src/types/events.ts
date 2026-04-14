@@ -1,4 +1,5 @@
 export type EventType = "MEETING" | "BIRTHDAY" | "ANNIVERSARY" | "OTHER" | "HOLIDAY";
+export type EventSource = "EVENT" | "BULLETIN";
 
 export interface EventItem {
     _id: string;
@@ -24,4 +25,5 @@ export interface EventItem {
     createdAt?: string;
     updatedAt?: string;
     meetLink?: string;
+    source?: EventSource;
 }

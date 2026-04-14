@@ -4,7 +4,7 @@ import {
     Users, CalendarCheck, CalendarDays, CalendarRange,
     Building2, BadgeDollarSign, Award, Banknote,
     Package, BriefcaseBusiness, ClipboardList, Shield,
-    ChevronRight, type LucideIcon,
+    ChevronRight, Megaphone, MessageSquare, type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +12,7 @@ const iconMap: Record<string, LucideIcon> = {
     Users, CalendarCheck, CalendarDays, CalendarRange,
     Building2, BadgeCommon: BadgeDollarSign, Award, Banknote,
     Package, BriefcaseBusiness, ClipboardList, Shield,
+    Megaphone, MessageSquare,
 }
 
 const roleStyles: Record<string, { pill: string; dot: string }> = {

@@ -1,11 +1,13 @@
 import { Outlet } from "react-router-dom"
 import Header from "./Header"
 import Sidebar from "./Sidebar"
+import BulletinBanner from "./bulletins/BulletinBanner"
 
 export default function Layout() {
     return (
         <div className="flex flex-col h-screen w-full bg-background text-foreground font-sans selection:bg-primary/20 overflow-hidden">
             <Header />
+            <BulletinBanner />
             <div className="flex flex-1 overflow-hidden relative">
                 {/* Ambient mesh gradient backgrounds */}
                 <div

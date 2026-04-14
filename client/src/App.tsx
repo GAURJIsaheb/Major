@@ -21,6 +21,8 @@ import Reviews from "./pages/dashboard/Reviews"
 import Roles from "./pages/dashboard/Roles"
 import RoleDetails from "./pages/dashboard/RoleDetails"
 import JobApply from "./pages/JobApply"
+import Bulletins from "./pages/dashboard/Bulletins"
+import Chat from "./pages/dashboard/Chat"
 import { Toaster } from "sonner"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -74,6 +76,8 @@ function App() {
           <Route path="hiring/:id" element={<HiringDetails />} />
           <Route path="hiring/applicant/:applicantId" element={<ApplicantDetails />} />
           <Route path="reviews" element={<Reviews />} />
+          <Route path="bulletins" element={<Bulletins />} />
+          <Route path="chat" element={<Chat />} />
         </Route>
 
         {/* Catch all - redirect to home (which redirects based on role) */}

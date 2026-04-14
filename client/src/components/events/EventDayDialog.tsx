@@ -29,6 +29,19 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
     OTHER: "bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300",
 };
 
+const BULLETIN_BADGE_CLASS =
+    "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300";
+
+const getBadgeDetails = (event: EventItem) => {
+    if (event.source === "BULLETIN") {
+        return { label: "Bulletin", className: BULLETIN_BADGE_CLASS };
+    }
+    return {
+        label: event.type,
+        className: EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.OTHER,
+    };
+};
+
 export default function EventDayDialog({
     isOpen,
     onClose,
@@ -40,9 +53,13 @@ export default function EventDayDialog({
 }: EventDayDialogProps) {
     const navigate = useNavigate();
 
-    const handleEventClick = (eventId: string) => {
+    const handleEventClick = (event: EventItem) => {
         onClose();
-        navigate(`/events/${eventId}`);
+        if (event.source === "BULLETIN") {
+            navigate("/bulletins");
+            return;
+        }
+        navigate(`/events/${event._id}`);
     };
 
     const dateString = date
@@ -68,37 +85,40 @@ export default function EventDayDialog({
                             No events on this date
                         </p>
                     ) : (
-                        events.map((event, index) => (
-                            <div key={event._id}>
-                                {index > 0 && <Separator className="my-2" />}
-                                <div
-                                    className="group flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
-                                    onClick={() => handleEventClick(event._id)}
-                                >
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h4 className="font-semibold text-sm text-foreground truncate">
-                                                {event.name}
-                                            </h4>
-                                            <Badge
-                                                variant="secondary"
-                                                className={`text-[10px] shrink-0 ${EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.OTHER}`}
-                                            >
-                                                {event.type}
-                                            </Badge>
+                        events.map((event, index) => {
+                            const badgeProps = getBadgeDetails(event);
+                            return (
+                                <div key={event._id}>
+                                    {index > 0 && <Separator className="my-2" />}
+                                    <div
+                                        className="group flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
+                                        onClick={() => handleEventClick(event)}
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="font-semibold text-sm text-foreground truncate">
+                                                    {event.name}
+                                                </h4>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`text-[10px] shrink-0 ${badgeProps.className}`}
+                                                >
+                                                    {badgeProps.label}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">
+                                                {event.description}
+                                            </p>
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <Clock className="h-3 w-3" />
+                                                <span>{event.time}</span>
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">
-                                            {event.description}
-                                        </p>
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                            <Clock className="h-3 w-3" />
-                                            <span>{event.time}</span>
-                                        </div>
+                                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
                                     </div>
-                                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </DialogContent>

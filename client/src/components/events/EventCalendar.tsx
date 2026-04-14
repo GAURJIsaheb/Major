@@ -19,6 +19,14 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
     OTHER: "bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300",
 };
 
+const BULLETIN_BADGE_CLASS =
+    "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300";
+
+const getBadgeClass = (event: EventItem) =>
+    event.source === "BULLETIN"
+        ? BULLETIN_BADGE_CLASS
+        : EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.OTHER;
+
 export default function EventCalendar({ events, month, year, onDateClick }: EventCalendarProps) {
     const today = new Date();
     const isCurrentMonth = today.getMonth() + 1 === month && today.getFullYear() === year;
@@ -103,7 +111,7 @@ export default function EventCalendar({ events, month, year, onDateClick }: Even
                                             <Badge
                                                 key={event._id}
                                                 variant="secondary"
-                                                className={`block w-full truncate text-[10px] px-1.5 py-0 h-5 font-medium leading-5 ${EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.OTHER}`}
+                                                className={`block w-full truncate text-[10px] px-1.5 py-0 h-5 font-medium leading-5 ${getBadgeClass(event)}`}
                                             >
                                                 {event.name}
                                             </Badge>
