@@ -17,7 +17,7 @@ export const GenerateAccessToken = function (email, id, firstName, lastName, rol
   return jwt.sign(
     { email, id, firstName, lastName, role },
     ACCESS_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "1h" }
   );
 };
 

@@ -170,7 +170,7 @@ const Attendance = () => {
                                         onClick={() => handlePunch("OUT")}
                                         disabled={!canPunchOut || actionLoading}
                                         variant="outline"
-                                        className="w-full h-12 justify-start gap-3 border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-all font-semibold rounded-xl hover:border-red-300"
+                                        className="w-full h-12 justify-start gap-3 border-destructive/40 text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-all font-semibold rounded-xl hover:border-destructive/60"
                                     >
                                         <LogOut size={20} />
                                         Punch OUT
@@ -178,7 +178,10 @@ const Attendance = () => {
                                 </div>
 
                                 {lastPunch && (
-                                    <div className={`text-sm font-medium text-center p-3.5 rounded-xl border shadow-sm ${lastPunch.type === 'IN' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-700' : 'bg-red-50/50 border-red-200 text-red-700'}`}>
+                                    <div className={`text-sm font-medium text-center p-3.5 rounded-xl border shadow-sm ${lastPunch.type === 'IN'
+                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-200'
+                                        : 'bg-destructive/10 border-destructive/20 text-destructive dark:bg-destructive/15 dark:border-destructive/30'
+                                    }`}>
                                         Last action: <span className="font-bold uppercase tracking-wide">{lastPunch.type}</span> at {formatTime(lastPunch.time)}
                                     </div>
                                 )}
@@ -187,12 +190,12 @@ const Attendance = () => {
                                 {verificationStatus !== "idle" && (
                                     <div className={`text-sm font-medium p-4 rounded-xl border shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                                         verificationStatus === "verifying"
-                                            ? "bg-blue-50/50 border-blue-200 text-blue-700"
+                                            ? "bg-primary/10 border-primary/20 text-primary dark:bg-primary/15 dark:border-primary/30"
                                             : verificationStatus === "verified"
-                                            ? "bg-emerald-50/50 border-emerald-200 text-emerald-700"
+                                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-200"
                                             : verificationStatus === "failed"
-                                            ? "bg-red-50/50 border-red-200 text-red-700"
-                                            : "bg-amber-50/50 border-amber-200 text-amber-700"
+                                            ? "bg-destructive/10 border-destructive/20 text-destructive dark:bg-destructive/15 dark:border-destructive/30"
+                                            : "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-200"
                                     }`}>
                                         <div className="flex items-center gap-2.5">
                                             {verificationStatus === "verifying" && (
@@ -239,7 +242,7 @@ const Attendance = () => {
 
                     {/* Logs Explorer */}
                     <Card className={`${isHR ? 'col-span-1' : 'col-span-1 lg:col-span-3'} shadow-xl shadow-primary/5 border-border/40 rounded-2xl overflow-hidden bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40`}>
-                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 bg-linear-to-r from-slate-50 to-teal-50/50 border-b border-border">
+                        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 bg-muted/30 border-b border-border">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-5 w-5 text-teal-600" />
                                 <CardTitle className="text-xl">Logs Explorer</CardTitle>
@@ -247,17 +250,17 @@ const Attendance = () => {
                             <div className="flex items-center space-x-3 mt-4 md:mt-0 w-full md:w-auto">
                                 {isHR && (
                                     <div className="relative flex-1 md:w-64">
-                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-teal-400" />
+                                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             placeholder="Search by ID or Name..."
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="pl-9 border-teal-200 focus-visible:ring-teal-300"
+                                            className="pl-9"
                                         />
                                     </div>
                                 )}
-                                <div className="flex items-center bg-white border border-teal-200 rounded-lg px-2">
-                                    <Calendar className="text-teal-400 h-4 w-4 mr-2" />
+                                <div className="flex items-center bg-background/60 border border-border rounded-lg px-2 backdrop-blur-sm">
+                                    <Calendar className="text-muted-foreground h-4 w-4 mr-2" />
                                     <Input
                                         type="date"
                                         value={filterDate}
@@ -280,13 +283,13 @@ const Attendance = () => {
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <Table>
-                                    <TableHeader className="bg-teal-50/60 uppercase text-xs tracking-wider">
+                                    <TableHeader className="bg-muted/20 uppercase text-xs tracking-wider">
                                         <TableRow>
-                                            <TableHead className="font-semibold text-teal-700">Date</TableHead>
-                                            {isHR && <TableHead className="font-semibold text-teal-700">Employee Details</TableHead>}
-                                            <TableHead className="font-semibold text-teal-700">First In</TableHead>
-                                            <TableHead className="font-semibold text-teal-700">Last Out</TableHead>
-                                            <TableHead className="font-semibold text-teal-700 text-right">Total Time</TableHead>
+                                            <TableHead className="font-semibold text-muted-foreground">Date</TableHead>
+                                            {isHR && <TableHead className="font-semibold text-muted-foreground">Employee Details</TableHead>}
+                                            <TableHead className="font-semibold text-muted-foreground">First In</TableHead>
+                                            <TableHead className="font-semibold text-muted-foreground">Last Out</TableHead>
+                                            <TableHead className="font-semibold text-muted-foreground text-right">Total Time</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -295,7 +298,7 @@ const Attendance = () => {
                                             const lastOut = record.punches ? [...record.punches].reverse().find(p => p.type === "OUT") : null;
 
                                             return (
-                                                <TableRow key={record._id} className="hover:bg-teal-50/40 transition-colors">
+                                                <TableRow key={record._id} className="hover:bg-muted/20 transition-colors">
                                                     <TableCell className="font-medium whitespace-nowrap">
                                                         {formatDateStr(record.date)}
                                                     </TableCell>
@@ -317,13 +320,13 @@ const Attendance = () => {
                                                         </TableCell>
                                                     )}
                                                     <TableCell className="whitespace-nowrap">
-                                                        {firstIn ? <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md text-sm font-medium">{formatTime(firstIn.time)}</span> : <span className="text-muted-foreground">-</span>}
+                                                        {firstIn ? <span className="bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 px-2 py-1 rounded-md text-sm font-medium">{formatTime(firstIn.time)}</span> : <span className="text-muted-foreground">-</span>}
                                                     </TableCell>
                                                     <TableCell className="whitespace-nowrap">
-                                                        {lastOut ? <span className="bg-red-50 text-red-700 px-2 py-1 rounded-md text-sm font-medium">{formatTime(lastOut.time)}</span> : <span className="text-muted-foreground">-</span>}
+                                                        {lastOut ? <span className="bg-destructive/10 text-destructive dark:bg-destructive/15 px-2 py-1 rounded-md text-sm font-medium">{formatTime(lastOut.time)}</span> : <span className="text-muted-foreground">-</span>}
                                                     </TableCell>
                                                     <TableCell className="whitespace-nowrap text-right">
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-semibold text-sm">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted text-foreground font-semibold text-sm">
                                                             <Clock className="h-3.5 w-3.5" /> {formatDuration(record.totalMinutes)}
                                                         </span>
                                                     </TableCell>
@@ -366,7 +369,7 @@ const Attendance = () => {
             {activeTab === "Analytics" && isHR && (
                 <div className="space-y-6 animate-in slide-in-from-bottom-2 fade-in duration-300">
                     {/* Filter Action Bar */}
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-5 bg-linear-to-r from-slate-50 to-teal-50 border border-teal-200 rounded-xl">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 p-5 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 border border-border/50 rounded-xl">
                         <div>
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <BarChart3 className="h-5 w-5 text-teal-600" /> Analytics Engine
@@ -375,18 +378,18 @@ const Attendance = () => {
                         </div>
                         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-teal-700 uppercase tracking-wider block">Time Range</label>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Time Range</label>
                                 <Input
                                     type="month"
                                     value={analyticsMonthFilter}
                                     onChange={(e) => setAnalyticsMonthFilter(e.target.value)}
-                                    className="border-teal-200 w-full md:w-48 focus-visible:ring-teal-300"
+                                    className="w-full md:w-48"
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-semibold text-teal-700 uppercase tracking-wider block">Department</label>
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Department</label>
                                 <Select value={analyticsDeptFilter} onValueChange={setAnalyticsDeptFilter}>
-                                    <SelectTrigger className="w-full md:w-56 border-teal-200 font-medium h-9">
+                                    <SelectTrigger className="w-full md:w-56 font-medium h-9">
                                         <SelectValue placeholder="All Departments" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -402,7 +405,7 @@ const Attendance = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {bestDepartment ? (
-                            <Card className="border-border shadow-sm rounded-xl overflow-hidden bg-linear-to-br from-emerald-50/50 to-teal-50/50 border-t-4 border-t-emerald-500">
+                            <Card className="border-border shadow-sm rounded-xl overflow-hidden bg-linear-to-br from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/15 dark:to-teal-500/5 border-t-4 border-t-emerald-500">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <Award className="h-5 w-5 text-emerald-500" />
@@ -411,18 +414,18 @@ const Attendance = () => {
                                     <CardDescription>Highest average hours for {format(parseISO(analyticsMonthFilter + '-01'), 'MMMM yyyy')}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-black text-emerald-700">{bestDepartment.name}</div>
-                                    <div className="mt-2 text-sm text-emerald-600 font-medium">Avg {bestDepartment.avgHours.toFixed(2)} Hrs / employee</div>
+                                    <div className="text-3xl font-black text-emerald-700 dark:text-emerald-200">{bestDepartment.name}</div>
+                                    <div className="mt-2 text-sm text-emerald-600 dark:text-emerald-300 font-medium">Avg {bestDepartment.avgHours.toFixed(2)} Hrs / employee</div>
                                 </CardContent>
                             </Card>
                         ) : (
-                            <Card className="border-border shadow-sm rounded-xl bg-slate-50">
+                            <Card className="border-border shadow-sm rounded-xl bg-muted/30">
                                 <CardHeader className="pb-2"><CardTitle className="text-muted-foreground">No Top Dept Data</CardTitle></CardHeader>
                             </Card>
                         )}
 
                         {(worstDepartment && bestDepartment?._id !== worstDepartment?._id) ? (
-                            <Card className="border-border shadow-sm rounded-xl overflow-hidden bg-linear-to-br from-amber-50/50 to-orange-50/50 border-t-4 border-t-amber-500">
+                            <Card className="border-border shadow-sm rounded-xl overflow-hidden bg-linear-to-br from-amber-500/10 to-orange-500/10 dark:from-amber-500/15 dark:to-orange-500/5 border-t-4 border-t-amber-500">
                                 <CardHeader className="pb-2">
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -431,12 +434,12 @@ const Attendance = () => {
                                     <CardDescription>Lowest average hours for {format(parseISO(analyticsMonthFilter + '-01'), 'MMMM yyyy')}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="text-3xl font-black text-amber-700">{worstDepartment.name}</div>
-                                    <div className="mt-2 text-sm text-amber-600 font-medium">Avg {worstDepartment.avgHours.toFixed(2)} Hrs / employee</div>
+                                    <div className="text-3xl font-black text-amber-700 dark:text-amber-200">{worstDepartment.name}</div>
+                                    <div className="mt-2 text-sm text-amber-600 dark:text-amber-300 font-medium">Avg {worstDepartment.avgHours.toFixed(2)} Hrs / employee</div>
                                 </CardContent>
                             </Card>
                         ) : (
-                            <Card className="border-border shadow-sm rounded-xl bg-slate-50">
+                            <Card className="border-border shadow-sm rounded-xl bg-muted/30">
                                 <CardHeader className="pb-2"><CardTitle className="text-muted-foreground">No Low Dept Data</CardTitle></CardHeader>
                             </Card>
                         )}
@@ -468,7 +471,7 @@ const Attendance = () => {
                                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)' }} />
                                                 <Tooltip
                                                     cursor={{ fill: 'var(--muted)' }}
-                                                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontWeight: '500', color: 'var(--foreground)' }}
+                                                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontWeight: '500', background: 'var(--popover)', color: 'var(--popover-foreground)' }}
                                                 />
                                                 <Bar dataKey="avgHours" name="Average Hours" fill="var(--foreground)" radius={[6, 6, 0, 0]} />
                                             </BarChart>
@@ -520,7 +523,7 @@ const Attendance = () => {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8 gap-2 border-teal-200 text-teal-700 hover:bg-teal-50"
+                                                            className="h-8 gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
                                                             onClick={() => setSelectedEmpId(emp._id)}
                                                         >
                                                             <BarChart3 className="h-4 w-4" /> View
@@ -554,7 +557,7 @@ const Attendance = () => {
                     <div className="space-y-8 mt-4">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Charts */}
-                            <Card className="col-span-1 lg:col-span-2 shadow-sm border-border bg-linear-to-br from-teal-50/30 to-cyan-50/30">
+                            <Card className="col-span-1 lg:col-span-2 shadow-sm border-border bg-linear-to-br from-teal-500/10 to-cyan-500/10 dark:from-teal-500/15 dark:to-cyan-500/5">
                                 <CardHeader className="pb-0">
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <Clock className="h-4 w-4 text-teal-600" /> Working Hours History
@@ -563,11 +566,20 @@ const Attendance = () => {
                                 <CardContent className="pt-6">
                                     <div className="space-y-6">
                                         <div className="h-56">
-                                            <p className="text-xs font-semibold text-teal-700 mb-2 uppercase tracking-widest">Daily Log</p>
+                                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-widest">Daily Log</p>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart data={chartDaily}>
-                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} />
-                                                    <Tooltip cursor={{ fill: '#F0FDFA' }} contentStyle={{ border: '1px solid #99F6E4', borderRadius: '8px', background: '#fff' }} />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} />
+                                                    <Tooltip
+                                                        cursor={{ fill: 'var(--muted)' }}
+                                                        contentStyle={{
+                                                            border: '1px solid var(--border)',
+                                                            borderRadius: '8px',
+                                                            background: 'var(--popover)',
+                                                            color: 'var(--popover-foreground)',
+                                                            fontWeight: 500,
+                                                        }}
+                                                    />
                                                     <Bar dataKey="Hours" fill="#0D9488" radius={[4, 4, 0, 0]} />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -608,7 +620,7 @@ const Attendance = () => {
                                 <CardContent className="pt-0 p-0">
                                     <div className="h-115 overflow-y-auto w-full">
                                         <Table>
-                                            <TableHeader className="bg-white sticky top-0 border-b border-border shadow-sm z-10 w-full">
+                                            <TableHeader className="bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur sticky top-0 border-b border-border shadow-sm z-10 w-full">
                                                 <TableRow>
                                                     <TableHead className="font-semibold text-xs">Date/Time</TableHead>
                                                     <TableHead className="font-semibold text-xs text-center">Type</TableHead>
@@ -623,7 +635,7 @@ const Attendance = () => {
                                                                 <div className="text-xs text-muted-foreground">{formatTime(p.time)}</div>
                                                             </TableCell>
                                                             <TableCell className="text-center w-24">
-                                                                <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${p.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                                <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${p.type === 'IN' ? 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-destructive/15 text-destructive dark:bg-destructive/20'}`}>
                                                                     {p.type}
                                                                 </span>
                                                             </TableCell>

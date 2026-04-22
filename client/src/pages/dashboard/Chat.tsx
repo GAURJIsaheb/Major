@@ -1,12 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat, type ChatMessage } from "@/hooks/Chat/useChat";
 import {
     MessageSquare,
     Send,
     Loader2,
     Users,
+    ImagePlus,
+    X,
+    SmilePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+// ── Emoji reactions (quick-pick) ──────────────────────────────────────────────
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "🙌", "🔥"];
 
 function Avatar({
     name,
@@ -48,15 +55,22 @@ function Avatar({
     );
 }
 
+// ── Single message bubble ─────────────────────────────────────────────────────
 function MessageBubble({
     msg,
     isMine,
     showMeta,
+    userId,
+    onToggleReaction,
 }: {
     msg: ChatMessage;
     isMine: boolean;
     showMeta: boolean;
+    userId: string;
+    onToggleReaction: (messageId: string, emoji: string) => void;
 }) {
+    const [showPicker, setShowPicker] = useState(false);
+    const pickerRef = useRef<HTMLDivElement>(null);
     const senderName = `${msg.sender.firstName} ${msg.sender.lastName}`.trim();
     const isHR = msg.sender.role?.toUpperCase() === "HR";
     const time = new Date(msg.createdAt).toLocaleTimeString([], {
@@ -64,14 +78,31 @@ function MessageBubble({
         minute: "2-digit",
     });
 
+    // Close picker when clicking outside
+    useEffect(() => {
+        if (!showPicker) return;
+        const handle = (e: MouseEvent) => {
+            if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+                setShowPicker(false);
+            }
+        };
+        document.addEventListener("mousedown", handle);
+        return () => document.removeEventListener("mousedown", handle);
+    }, [showPicker]);
+
+    const handleReaction = (emoji: string) => {
+        onToggleReaction(msg._id, emoji);
+        setShowPicker(false);
+    };
+
     return (
         <div
             className={cn(
-                "flex gap-2.5 items-end",
+                "group flex gap-2.5 items-end",
                 isMine ? "flex-row-reverse" : "flex-row"
             )}
         >
-            {/* Avatar — show only on first msg in group */}
+            {/* Avatar */}
             <div className="w-8 shrink-0">
                 {showMeta && (
                     <Avatar
@@ -108,26 +139,120 @@ function MessageBubble({
                 )}
 
                 {/* Bubble */}
-                <div
-                    className={cn(
-                        "px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-words shadow-sm",
-                        isMine
-                            ? "rounded-br-sm bg-primary text-primary-foreground"
-                            : "rounded-bl-sm bg-card border border-border/60 text-foreground"
+                <div className="relative">
+                    <div
+                        className={cn(
+                            "px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm overflow-hidden",
+                            isMine
+                                ? "rounded-br-sm bg-primary text-primary-foreground"
+                                : "rounded-bl-sm bg-card border border-border/60 text-foreground"
+                        )}
+                    >
+                        {/* Image attachment */}
+                        {msg.imageUrl && (
+                            <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                    src={msg.imageUrl}
+                                    alt="attachment"
+                                    className="rounded-xl max-w-full max-h-60 object-cover mb-2 cursor-zoom-in hover:opacity-90 transition-opacity"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = "none";
+                                    }}
+                                />
+                            </a>
+                        )}
+
+                        {/* Text */}
+                        {msg.text && (
+                            <span className="wrap-break-word">{msg.text}</span>
+                        )}
+                    </div>
+
+                    {/* Reaction picker trigger */}
+                    <button
+                        onClick={(ev) => { ev.stopPropagation(); setShowPicker((v) => !v); }}
+                        className={cn(
+                            "absolute -bottom-3 opacity-0 group-hover:opacity-100 transition-all duration-150",
+                            "flex items-center justify-center w-7 h-7 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground hover:scale-110",
+                            isMine ? "-left-9" : "-right-9"
+                        )}
+                        aria-label="React"
+                    >
+                        <SmilePlus className="w-4 h-4" />
+                    </button>
+
+                    {/* Emoji picker — z-50 so it floats above scroll container */}
+                    {showPicker && (
+                        <div
+                            ref={pickerRef}
+                            className={cn(
+                                "absolute z-50 flex items-center gap-1 bg-card border border-border/60 rounded-xl p-1.5 shadow-xl",
+                                isMine ? "right-0 bottom-full mb-2" : "left-0 bottom-full mb-2"
+                            )}
+                        >
+                            {QUICK_EMOJIS.map((e) => (
+                                <button
+                                    key={e}
+                                    onClick={(ev) => { ev.stopPropagation(); handleReaction(e); }}
+                                    className="w-8 h-8 flex items-center justify-center text-lg hover:bg-accent rounded-lg transition-all hover:scale-125 duration-100"
+                                    title={e}
+                                >
+                                    {e}
+                                </button>
+                            ))}
+                        </div>
                     )}
-                >
-                    {msg.text}
                 </div>
 
+                {/* Reactions */}
+                {msg.reactions && msg.reactions.length > 0 && (
+                    <div className={cn("flex flex-wrap gap-1 px-1", isMine && "justify-end")}>
+                        {msg.reactions.map((r) => {
+                            // Normalise: server sends populated objects {_id, firstName, lastName}
+                            // but REST history may still have plain string IDs — handle both.
+                            const getUserId = (u: any): string =>
+                                typeof u === "string" ? u : u._id;
+                            const getUserName = (u: any): string =>
+                                typeof u === "string"
+                                    ? u
+                                    : `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
+
+                            const hasReacted = r.users.some(
+                                (u: any) => getUserId(u) === userId
+                            );
+                            const names = r.users
+                                .map((u: any) => getUserName(u))
+                                .filter(Boolean)
+                                .join(", ");
+
+                            return (
+                                <button
+                                    key={r.emoji}
+                                    onClick={() => handleReaction(r.emoji)}
+                                    title={names || undefined}
+                                    className={cn(
+                                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all border",
+                                        hasReacted
+                                            ? "bg-primary/10 border-primary text-primary hover:bg-primary/20"
+                                            : "bg-accent border-border/50 text-muted-foreground hover:bg-accent/80"
+                                    )}
+                                >
+                                    <span>{r.emoji}</span>
+                                    <span className="font-medium">{r.users.length}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {/* Timestamp */}
-                <span className="text-[10px] text-muted-foreground/70 px-1">
-                    {time}
-                </span>
+                <span className="text-[10px] text-muted-foreground/70 px-1">{time}</span>
             </div>
         </div>
     );
 }
 
+// ── Main Chat page ────────────────────────────────────────────────────────────
 export default function Chat() {
     const {
         messages,
@@ -135,12 +260,19 @@ export default function Chat() {
         inputText,
         setInputText,
         sending,
+        uploading,
         sendMessage,
+        uploadImage,
+        toggleReaction,
         userId,
     } = useChat();
 
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [pendingImage, setPendingImage] = useState<File | null>(null);
+    const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
 
     // Auto-scroll to bottom on new message
     useEffect(() => {
@@ -152,8 +284,51 @@ export default function Chat() {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            handleSend();
         }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate type & size (max 5 MB)
+        if (!file.type.startsWith("image/")) {
+            toast.error("Only image files are allowed");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image must be smaller than 5 MB");
+            return;
+        }
+
+        setPendingImage(file);
+        setPendingImagePreview(URL.createObjectURL(file));
+        e.target.value = "";
+    };
+
+    const removePendingImage = () => {
+        if (pendingImagePreview) URL.revokeObjectURL(pendingImagePreview);
+        setPendingImage(null);
+        setPendingImagePreview(null);
+    };
+
+    const handleSend = async () => {
+        if (sending || uploading) return;
+        if (!inputText.trim() && !pendingImage) return;
+
+        let imageUrl: string | null = null;
+
+        if (pendingImage) {
+            imageUrl = await uploadImage(pendingImage);
+            if (imageUrl === null) {
+                toast.error("Image upload failed. Try again.");
+                return;
+            }
+            removePendingImage();
+        }
+
+        sendMessage(imageUrl);
     };
 
     // Group messages: show meta only when sender changes
@@ -161,6 +336,8 @@ export default function Chat() {
         if (idx === 0) return true;
         return messages[idx].sender._id !== messages[idx - 1].sender._id;
     };
+
+    const isBusy = sending || uploading;
 
     return (
         <div className="w-full max-w-4xl mx-auto flex flex-col gap-0 animate-slide-up-fade h-[calc(100vh-10rem)]">
@@ -182,7 +359,6 @@ export default function Chat() {
                             </p>
                         </div>
                     </div>
-
                 </div>
             </div>
 
@@ -216,6 +392,8 @@ export default function Chat() {
                                     msg={msg}
                                     isMine={isMine}
                                     showMeta={shouldShowMeta(idx)}
+                                    userId={userId}
+                                    onToggleReaction={toggleReaction}
                                 />
                             );
                         })}
@@ -225,7 +403,61 @@ export default function Chat() {
 
             {/* Input area */}
             <div className="rounded-b-2xl bg-card border border-border/50 border-t px-4 py-4 shadow-sm">
+                {/* Image preview strip */}
+                {pendingImagePreview && (
+                    <div className="mb-3 flex items-start gap-2">
+                        <div className="relative inline-block">
+                            <img
+                                src={pendingImagePreview}
+                                alt="preview"
+                                className="h-20 w-28 object-cover rounded-xl border border-border shadow-sm"
+                            />
+                            <button
+                                onClick={removePendingImage}
+                                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                                aria-label="Remove image"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </div>
+                        <span className="text-xs text-muted-foreground mt-2">
+                            {pendingImage?.name}
+                        </span>
+                    </div>
+                )}
+
                 <div className="flex gap-3 items-end">
+                    {/* Hidden file input */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        id="chat-image-input"
+                    />
+
+                    {/* Image attach button */}
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isBusy}
+                        title="Attach image"
+                        className={cn(
+                            "flex items-center justify-center w-11 h-11 rounded-xl border border-border/60 shrink-0 transition-all duration-200",
+                            pendingImage
+                                ? "bg-indigo-100 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400"
+                                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                            isBusy && "opacity-50 cursor-not-allowed"
+                        )}
+                        aria-label="Attach image"
+                    >
+                        {uploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <ImagePlus className="w-4 h-4" />
+                        )}
+                    </button>
+
                     <textarea
                         ref={textareaRef}
                         rows={1}
@@ -236,18 +468,19 @@ export default function Chat() {
                         onKeyDown={handleKeyDown}
                         autoFocus
                     />
+
                     <button
-                        onClick={sendMessage}
-                        disabled={sending || !inputText.trim()}
+                        onClick={handleSend}
+                        disabled={isBusy || (!inputText.trim() && !pendingImage)}
                         className={cn(
                             "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200 shrink-0 font-medium",
-                            sending || !inputText.trim()
+                            isBusy || (!inputText.trim() && !pendingImage)
                                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                                 : "bg-primary text-primary-foreground hover:opacity-90 shadow-md shadow-primary/25 hover:scale-105 active:scale-95"
                         )}
                         aria-label="Send message"
                     >
-                        {sending ? (
+                        {isBusy ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                             <Send className="w-4 h-4" />

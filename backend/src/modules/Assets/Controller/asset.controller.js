@@ -182,7 +182,7 @@ class AssetController {
         if (!fileName || !contentType) {
             throw new ApiError(Types.Errors.BadRequest, "fileName and contentType are required");
         }
-        const signedUrl = await GenerateUploadUrl(`assets/${Date.now()}-${fileName}`, contentType, "assets");
+        const signedUrl = await GenerateUploadUrl(`assets/${Date.now()}-${fileName}`, contentType, "register-photos-major");
         return res.status(200).json(new ApiResponse(200, { signedUrl }, "Signed URL generated successfully"));
     })
 

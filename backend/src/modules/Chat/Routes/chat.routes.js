@@ -11,6 +11,8 @@ class ChatRoutes {
   routes() {
     this.router.get("/messages", VerifyMiddleware, this.controller.GetMessages);
     this.router.post("/messages", VerifyMiddleware, this.controller.SendMessage);
+    this.router.get("/upload-url", VerifyMiddleware, this.controller.GetSignedUrl);
+    this.router.post("/reactions", VerifyMiddleware, this.controller.ToggleReaction);
     return this.router;
   }
 }

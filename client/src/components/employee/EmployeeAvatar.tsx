@@ -8,6 +8,7 @@ interface EmployeeAvatarProps {
     lastName?: string;
     profileImage?: string;
     className?: string;
+    textClassName?: string;
 }
 
 export default function EmployeeAvatar({

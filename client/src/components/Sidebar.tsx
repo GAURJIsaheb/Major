@@ -4,29 +4,47 @@ import {
     Users, CalendarCheck, CalendarDays, CalendarRange,
     Building2, BadgeDollarSign, Award, Banknote,
     Package, BriefcaseBusiness, ClipboardList, Shield,
-    ChevronRight, Megaphone, MessageSquare, type LucideIcon,
+    ChevronRight, Megaphone, MessageSquare, LayoutDashboard, type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAppSelector } from "@/store/hooks"
 
 const iconMap: Record<string, LucideIcon> = {
     Users, CalendarCheck, CalendarDays, CalendarRange,
     Building2, BadgeCommon: BadgeDollarSign, Award, Banknote,
     Package, BriefcaseBusiness, ClipboardList, Shield,
-    Megaphone, MessageSquare,
+    Megaphone, MessageSquare, LayoutDashboard,
 }
 
-const roleStyles: Record<string, { pill: string; dot: string }> = {
-    HR:       { pill: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200 dark:ring-violet-700/50", dot: "bg-violet-500" },
-    EMPLOYEE: { pill: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200 dark:ring-indigo-700/50", dot: "bg-indigo-500" },
+const roleStyles: Record<string, { pill: string; dot: string; avatar: string }> = {
+    HR: {
+        pill: "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200 dark:ring-violet-700/50",
+        dot: "bg-violet-500",
+        avatar: "bg-gradient-to-br from-violet-500 to-indigo-600",
+    },
+    EMPLOYEE: {
+        pill: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200 dark:ring-indigo-700/50",
+        dot: "bg-indigo-500",
+        avatar: "bg-gradient-to-br from-indigo-500 to-blue-600",
+    },
 }
 
 export default function Sidebar() {
     const { role, items } = useSidebar()
     const location = useLocation()
+    const { userDetails } = useAppSelector((state) => state.userState)
+
     const rs = roleStyles[role?.toUpperCase() ?? ""] ?? {
         pill: "bg-muted text-muted-foreground ring-1 ring-border",
         dot: "bg-muted-foreground",
+        avatar: "bg-gradient-to-br from-slate-400 to-slate-600",
     }
+
+    const firstName = userDetails?.firstName || ""
+    const lastName = userDetails?.lastName || ""
+    const fullName = `${firstName} ${lastName}`.trim() || "User"
+    const initials = [firstName[0], lastName[0]].filter(Boolean).join("").toUpperCase() || "U"
+    const profileImage = (userDetails as any)?.profileImage as string | undefined
 
     return (
         <aside className="w-64 hidden md:flex flex-col shrink-0 relative z-20 overflow-hidden" style={{ borderRight: "1px solid var(--sidebar-border)" }}>
@@ -38,15 +56,30 @@ export default function Sidebar() {
             <div className="absolute bottom-0 right-0 w-36 h-36 rounded-full blur-2xl pointer-events-none translate-x-1/4 translate-y-1/4" style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)", opacity: 0.04 }} />
 
             <div className="relative flex flex-col flex-1 overflow-hidden">
-                {/* Role badge */}
-                {role && (
-                    <div className="px-4 pt-5 pb-4">
-                        <div className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest", rs.pill)}>
-                            <span className={cn("w-1.5 h-1.5 rounded-full", rs.dot)} />
-                            {role}
+                {/* ── User profile card ── */}
+                <div className="px-4 pt-5 pb-4">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-accent/40 border border-border/40 backdrop-blur-sm">
+                        {/* Avatar */}
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden shadow-md", rs.avatar)}>
+                            {profileImage ? (
+                                <img src={profileImage} alt={fullName} className="w-full h-full object-cover" />
+                            ) : (
+                                initials
+                            )}
+                        </div>
+
+                        {/* Name + role */}
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-foreground truncate leading-tight">{fullName}</p>
+                            {role && (
+                                <div className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest mt-1", rs.pill)}>
+                                    <span className={cn("w-1.5 h-1.5 rounded-full", rs.dot)} />
+                                    {role}
+                                </div>
+                            )}
                         </div>
                     </div>
-                )}
+                </div>
 
                 <div className="mx-4 h-px bg-border/50" />
 

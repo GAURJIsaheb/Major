@@ -63,12 +63,15 @@ export function initChatWebSocket(server) {
 
       if (data.type === "SEND_MESSAGE") {
         const text = (data.payload?.text || "").trim();
-        if (!text || text.length > 2000) return;
+        const imageUrl = data.payload?.imageUrl || null;
+        if (!text && !imageUrl) return;
+        if (text.length > 2000) return;
 
         try {
           const msg = await MessageModel.create({
             sender: userMeta.userId,
             text,
+            imageUrl,
           });
 
           const outbound = {
@@ -76,6 +79,8 @@ export function initChatWebSocket(server) {
             payload: {
               _id: msg._id,
               text: msg.text,
+              imageUrl: msg.imageUrl,
+              reactions: msg.reactions,
               createdAt: msg.createdAt,
               sender: {
                 _id: userMeta.userId,
@@ -96,6 +101,64 @@ export function initChatWebSocket(server) {
 
       if (data.type === "PING") {
         ws.send(JSON.stringify({ type: "PONG" }));
+      }
+
+      if (data.type === "ADD_REACTION") {
+        const { messageId, emoji } = data.payload;
+        if (!messageId || !emoji) return;
+
+        try {
+          // Step 1: Atomically ensure the emoji bucket exists with this user in it.
+          // $addToSet on a nested array element requires two passes:
+          // First ensure the reaction sub-doc exists...
+          await MessageModel.updateOne(
+            { _id: messageId, "reactions.emoji": { $ne: emoji } },
+            { $push: { reactions: { emoji, users: [] } } }
+          );
+          // Then atomically add the user to that bucket (idempotent with $addToSet).
+          const updated = await MessageModel.findOneAndUpdate(
+            { _id: messageId, "reactions.emoji": emoji },
+            { $addToSet: { "reactions.$.users": userMeta.userId } },
+            { new: true }
+          ).populate("reactions.users", "firstName lastName profileImage");
+
+          if (!updated) return;
+
+          broadcastAll({
+            type: "REACTION_UPDATED",
+            payload: { _id: updated._id, reactions: updated.reactions },
+          });
+        } catch (err) {
+          console.error("WS: failed to add reaction", err);
+        }
+      }
+
+      if (data.type === "REMOVE_REACTION") {
+        const { messageId, emoji } = data.payload;
+        if (!messageId || !emoji) return;
+
+        try {
+          // Atomically pull the user from the emoji bucket.
+          await MessageModel.updateOne(
+            { _id: messageId, "reactions.emoji": emoji },
+            { $pull: { "reactions.$.users": userMeta.userId } }
+          );
+          // Clean up empty emoji buckets and return populated doc.
+          const updated = await MessageModel.findByIdAndUpdate(
+            messageId,
+            { $pull: { reactions: { users: { $size: 0 } } } },
+            { new: true }
+          ).populate("reactions.users", "firstName lastName profileImage");
+
+          if (!updated) return;
+
+          broadcastAll({
+            type: "REACTION_UPDATED",
+            payload: { _id: updated._id, reactions: updated.reactions },
+          });
+        } catch (err) {
+          console.error("WS: failed to remove reaction", err);
+        }
       }
     });
 

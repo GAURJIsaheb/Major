@@ -14,6 +14,7 @@ import HiringRoutes from "./modules/Hiring/Routers/hiring.routes.js";
 import PermissionsRoutes from "./modules/Roles/Routes/permissions.routes.js";
 import BulletinRoutes from "./modules/Bulletins/Routes/bulletin.routes.js";
 import ChatRoutes from "./modules/Chat/Routes/chat.routes.js";
+import KanbanRoutes from "./modules/Kanban/Routes/kanban.routes.js";
 
 class Routes {
   constructor() {
@@ -34,6 +35,7 @@ class Routes {
     this.permissionsRoutes = new PermissionsRoutes().routes();
     this.bulletinRoutes = new BulletinRoutes().routes();
     this.chatRoutes = new ChatRoutes().routes();
+    this.kanbanRoutes = new KanbanRoutes().routes();
   }
   routes() {
     this.router.use("/", this.userRoutes);
@@ -51,6 +53,7 @@ class Routes {
     this.router.use("/permissions", this.permissionsRoutes);
     this.router.use("/bulletins", this.bulletinRoutes);
     this.router.use("/chat", this.chatRoutes);
+    this.router.use("/kanban", this.kanbanRoutes);
     return this.router;
   }
 }

@@ -9,10 +9,28 @@ const MessageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 2000,
+      default: "",
     },
+    imageUrl: {
+      type: String,
+      default: null,
+    },
+    reactions: [
+      {
+        emoji: {
+          type: String,
+          required: true,
+        },
+        users: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Users",
+          },
+        ],
+      },
+    ],
   },
   {
     timestamps: true,

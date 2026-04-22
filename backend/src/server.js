@@ -40,9 +40,10 @@ class App {
         credentials: true,
       })
     );
-    this.app.use(express.json());
+    // Kanban tasks can include base64 image data URLs; bump payload limits accordingly.
+    this.app.use(express.json({ limit: "6mb" }));
     this.app.use(cookieParser());
-    this.app.use(express.urlencoded({ extended: false }));
+    this.app.use(express.urlencoded({ extended: false, limit: "6mb" }));
   }
 
   Listen(PORT) {
