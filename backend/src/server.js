@@ -8,9 +8,22 @@ import Routes from "./routes.js";
 import RedisClient from "./config/Redis.js";
 import { initChatWebSocket } from "./config/ChatWS.js";
 
+const parseCorsOrigins = (value) => {
+  if (!value) return ["http://localhost:5173"];
+  const origins = value
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return origins.length > 0 ? origins : ["http://localhost:5173"];
+};
+
 class App {
   constructor(DbUrl, DbName, RedisUrl) {
     this.app = express();
+    if (process.env.NODE_ENV === "production") {
+      // Needed for correct cookie / HTTPS behavior behind Render's proxy.
+      this.app.set("trust proxy", 1);
+    }
     this.server = http.createServer(this.app);
     this.#initializeSerivces(DbUrl, DbName, RedisUrl);
     this.#initializeMiddlewares();
@@ -34,9 +47,10 @@ class App {
   }
 
   #initializeMiddlewares() {
+    const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGIN);
     this.app.use(
       cors({
-        origin: "http://localhost:5173",
+        origin: allowedOrigins,
         credentials: true,
       })
     );

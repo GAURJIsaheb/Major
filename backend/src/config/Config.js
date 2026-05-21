@@ -6,6 +6,7 @@ import { z as zod } from "zod";
 const EnvSchema = zod.object({
   PORT: zod.coerce.number().int().positive(),
   INSTANCES: zod.coerce.number().int().positive(),
+  CORS_ORIGIN: zod.string().optional(),
   ACCESS_TOKEN_SECRET: zod.string().min(1),
   MONGO_DB_URL: zod.string().min(1),
   DB_NAME: zod.string().min(1),

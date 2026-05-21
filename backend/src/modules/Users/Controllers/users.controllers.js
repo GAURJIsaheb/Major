@@ -17,6 +17,15 @@ const registerFaceForEmployee = (employeeId, profileImageUrl) => {
   });
 }
 
+const getCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+  };
+};
+
 
 class UserController {
   constructor() {
@@ -127,10 +136,7 @@ class UserController {
     await SessionModel.create({ userId: savedUserDetail._id, token: RefreshToken });
     const AccessToken = GenerateAccessToken(email, savedUserDetail._id, savedUserDetail.firstName, savedUserDetail.lastName, savedUserDetail.role);
 
-    const options = {
-      httpOnly: true,
-      secure: false
-    };
+    const options = getCookieOptions();
 
 
     return res.status(200).cookie("accessToken", AccessToken, options).cookie("refreshToken", RefreshToken, options).json(new ApiResponse(200, {
@@ -149,10 +155,7 @@ class UserController {
 
   LogOut = AsyncHandler(async (req, res) => {
 
-    const options = {
-      httpOnly: true,
-      secure: false
-    };
+    const options = getCookieOptions();
 
     return res.status(200).clearCookie("accessToken", options).clearCookie("refreshToken", options).json(new ApiResponse(200, {}, "Logout successful"))
 
@@ -282,10 +285,7 @@ class UserController {
     // Create new session
     await SessionModel.create({ userId: user._id, token: newRefreshToken });
 
-    const options = {
-      httpOnly: true,
-      secure: false
-    };
+    const options = getCookieOptions();
 
     return res.status(200)
       .cookie("accessToken", newAccessToken, options)

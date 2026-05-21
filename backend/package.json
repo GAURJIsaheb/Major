@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "cross-env SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node --watch src/index.js",
-    "start": "cross-env NODE_ENV=production SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node src/index.js",
+    "start": "cross-env NODE_ENV=production SERVICE_NAME=backend node src/index.js",
     "seed": "cross-env SERVICE_NAME=backend DOTENV_CONFIG_PATH=./env/nexushr-backend.env node src/seed.js",
     "dev:analytics-worker": "cross-env SERVICE_NAME=analytics-worker DOTENV_CONFIG_PATH=./env/nexushr-analytics-worker.env node ../workers/analytics/src/analytics-worker.js",
     "dev:image-worker": "cross-env SERVICE_NAME=image-worker DOTENV_CONFIG_PATH=./env/nexushr-image-worker.env node ../workers/image-worker/src/image-worker.js",

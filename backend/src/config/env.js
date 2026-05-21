@@ -13,18 +13,29 @@ const serviceEnvFiles = {
   "payroll-generator": "nexushr-payroll-generator.env",
 };
 const serviceName = process.env.SERVICE_NAME ?? "backend";
-const resolvedEnvFile =
-  process.env.DOTENV_CONFIG_PATH ??
-  path.join(__dirname, "..", "..", "env", serviceEnvFiles[serviceName] ?? serviceEnvFiles.backend);
+const explicitEnvPath = process.env.DOTENV_CONFIG_PATH;
+const defaultEnvPath = path.join(
+  __dirname,
+  "..",
+  "..",
+  "env",
+  serviceEnvFiles[serviceName] ?? serviceEnvFiles.backend
+);
+const resolvedEnvFile = explicitEnvPath ?? defaultEnvPath;
 
-const result = dotenv.config({ path: resolvedEnvFile, override: true });
-if (result.error && result.error.code !== "ENOENT") {
-  throw result.error;
+// In production (e.g., Render), prefer real environment variables and avoid
+// implicitly loading committed .env files. For local/dev, keep supporting .env.
+const shouldLoadDotenv = Boolean(explicitEnvPath) || process.env.NODE_ENV !== "production";
+if (shouldLoadDotenv) {
+  const result = dotenv.config({ path: resolvedEnvFile, override: false });
+  if (result.error && result.error.code !== "ENOENT") {
+    throw result.error;
+  }
 }
 
 const envDebug = {
   serviceName,
-  envFile: resolvedEnvFile,
+  envFile: shouldLoadDotenv ? resolvedEnvFile : null,
   awsRegion: process.env.AWS_REGION,
   hasAwsCredentials: Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
   s3Bucket: process.env.S3_BUCKET,
